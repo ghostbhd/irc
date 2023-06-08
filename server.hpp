@@ -8,6 +8,7 @@
 class Server
 {
     private:
+        std::string pass;
         int server_fd;
         int port;
     public:
@@ -15,6 +16,9 @@ class Server
         Server(int port, std::string password);
         ~Server();
         void socket();
+        std::string const &getPass()const;
+        int const &getServer_fd()const;
+        int const &getPort()const;
 };
 
 
