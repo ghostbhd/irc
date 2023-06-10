@@ -6,6 +6,7 @@
 #include <unistd.h> //for read
 #include <fcntl.h> //for non_blocking sockets
 #include <sys/poll.h> //for multiplexing
+#include <cstdlib> //for exit() and EXIT_FAILURE
 //#include <sys/select.h>
 #include <exception>
 #include <vector>
@@ -17,8 +18,8 @@ class Server
         int sock_fd;
         int port;
         std::vector<pollfd> poll_vc ;
-        bool is_on;
-        char buffer[1024];
+        //bool is_on;
+        //char buffer[1024];
         // fd_set read;
         // fd_set write;
         // fd_set reread;

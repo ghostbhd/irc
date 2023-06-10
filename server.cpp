@@ -9,92 +9,149 @@ Server::Server(int port, std::string password)
 {
     this->pass = password;
     this->port = port;
-    //char buff[1024]; 
-    int opt = 1;
-    sockaddr_in sockaddr;
-    sockaddr.sin_family = AF_INET; //address family ==> IPv4
-    sockaddr.sin_addr.s_addr = INADDR_ANY; //from any address
-    sockaddr.sin_port = htons(this->port); //convert a number to network byte order
 
-    std::memset(&sockaddr, 0, sizeof sockaddr);
-
-    this->sock_fd = socket(AF_INET, SOCK_STREAM, 0); //SOCK_STREAM => create a TCP socket
+    int connection;
+    int len;
+    char buff[1024];
+    
+    this->sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->sock_fd < 0)
     {
         std::cerr << "Cannot create socket!\n";
         exit(EXIT_FAILURE);
     }
-    if (setsockopt(this->sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) //reuse a local address and port number that is already in use by another socket
-    {
-        std::cerr << "Server cannot reuse socket\n";
-        exit(EXIT_FAILURE);
-    }
-    if (fcntl(this->sock_fd, F_SETFL, O_NONBLOCK) < 0) //changes the properties of the file corresponding to fd
-    {
-        std::cerr << "Blocking socket\n";
-        exit(EXIT_FAILURE); 
-    }
+
+    sockaddr_in sockaddr;
+    sockaddr.sin_family = AF_INET;
+    sockaddr.sin_addr.s_addr = INADDR_ANY;
+    sockaddr.sin_port = htons(this->port);
+
     if (bind(this->sock_fd, (struct sockaddr*) &sockaddr, sizeof(sockaddr)) < 0) //struct used to specify the @ assigned to the sock
     {
         std::cerr << "Server cannot bind to the port\n";
         exit (EXIT_FAILURE);
     }
-    if (listen(this->sock_fd, 100)) //marks a socket as passive
+    if (listen(this->sock_fd, 100)) //marks a socket as passive, holds at most 100 connections
     {
         std::cerr << "Server cannot listen on socket\n";
         exit (EXIT_FAILURE);
     }
 
+    len = sizeof(sockaddr);
+    connection = accept(this->sock_fd, (struct sockaddr*)&sockaddr, (socklen_t*)&len);
+    if (connection < 0)
+    {
+        std::cerr << "Server cannot connect\n";
+        exit (EXIT_FAILURE);
+    }
+    while (1)
+    {
+        //int bytes_to_read = read(connection, buff, 1024);
+        std::cout << "Server launched !" << buff;
 
-    // pollfd serv_poll;
-    // std::memset(&ser_poll, 0, sizeof(ser_poll));
+        std::string response = "Well received\n";
+        send(connection, response.c_str(), response.size(), 0);
+    }
 
-    // struct sockaddr_in client_addr;
-    // socklen_t len = sizeof(client_addr);
-    // struct pollfd client_poll;
-    // int client_fd;
-
-    // serv_poll.fd = this->sock_fd;
-    // serv_poll.events = POLL_IN; //for read events
-    // this->poll_vc.push_back(serv_poll);
-
-    // while (1)
-    // {
-    //     if (poll(poll_vc.data(), this->poll_vec.size(), 0) < 0)
-    //     {
-    //         std::cerr << "Server Cannot execute multiple clients\n";
-    //         exit(EXIT_FAILURE);
-    //     }
-    //     for (unsigned int i=0; i < poll_vc.size(); i++)
-    //     {
-    //         pollfd &instant_client = poll_vc[i];
-    //         if (!(instant_client.revents &POLLIN))
-    //             continue ;
-    //         if (instant_client.fd == this->sock_fd)
-    //         {
-    //             try
-    //             {
-    //                 client_fd = accept(this->sock_fd, (struct sockaddr*)&addr_client, &len);
-    //                 fcntl(client_fd, F_SETFL, O_NONBLOCK);
-    //                 if (client_fd < 0)
-    //                 {
-    //                     std::cerr << "Cannot accept client !\n";
-    //                     exit(EXIT_FAILURE);
-    //                 }
-    //                 client_poll.fd = client_fd;
-    //                 client_poll.events = POLLIN;
-
-    //             }
-    //             catch(const std::exception& e)
-    //             {
-    //                 std::cerr << e.what() << '\n';
-    //             }
-                
-    //         }
-    //     }
-    // }
+    close(connection);
+    close(this->sock_fd);
 
 }
+
+// Server::Server(int port, std::string password)
+// {
+//     //char buff[1024]; 
+//     this->pass = password;
+//     this->port = port;
+
+//     ///********Launching Sockets*********////////
+//     int opt = 1;
+//     sockaddr_in sockaddr;
+//     sockaddr.sin_family = AF_INET; //address family ==> IPv4
+//     sockaddr.sin_addr.s_addr = INADDR_ANY; //from any address
+//     sockaddr.sin_port = htons(this->port); //convert a number to network byte order
+
+//     std::memset(&sockaddr, 0, sizeof sockaddr);
+
+//     this->sock_fd = socket(AF_INET, SOCK_STREAM, 0); //SOCK_STREAM => create a TCP socket
+//     if (this->sock_fd < 0)
+//     {
+//         std::cerr << "Cannot create socket!\n";
+//         exit(EXIT_FAILURE);
+//     }
+//     if (setsockopt(this->sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) //reuse a local address and port number that is already in use by another socket
+//     {
+//         std::cerr << "Server cannot reuse socket\n";
+//         exit(EXIT_FAILURE);
+//     }
+//     if (fcntl(this->sock_fd, F_SETFL, O_NONBLOCK) < 0) //changes the properties of the file corresponding to fd
+//     {
+//         std::cerr << "Blocking socket\n";
+//         exit(EXIT_FAILURE); 
+//     }
+//     if (bind(this->sock_fd, (struct sockaddr*) &sockaddr, sizeof(sockaddr)) < 0) //struct used to specify the @ assigned to the sock
+//     {
+//         std::cerr << "Server cannot bind to the port\n";
+//         exit (EXIT_FAILURE);
+//     }
+//     if (listen(this->sock_fd, 100)) //marks a socket as passive, holds at most 100 connections
+//     {
+//         std::cerr << "Server cannot listen on socket\n";
+//         exit (EXIT_FAILURE);
+//     }
+
+
+//     ///********Handling Multiplexing*********////////
+//     pollfd serv_poll;
+//     std::memset(&serv_poll, 0, sizeof(serv_poll));
+
+//     struct sockaddr_in client_addr;
+//     socklen_t len = sizeof(client_addr);
+//     struct pollfd client_poll;
+//     int client_fd;
+
+//     serv_poll.fd = this->sock_fd;
+//     serv_poll.events = POLL_IN; //for read events
+//     this->poll_vc.push_back(serv_poll);
+
+//     while (1)
+//     {
+//         if (poll(poll_vc.data(), this->poll_vc.size(), 0) < 0)
+//         {
+//             std::cerr << "Server Cannot execute multiple clients\n";
+//             exit(EXIT_FAILURE);
+//         }
+//         for (unsigned int i=0; i < poll_vc.size(); i++)
+//         {
+//             pollfd &instant_client = poll_vc[i];
+//             if (!(instant_client.revents &POLLIN))
+//                 continue ;
+//             if (instant_client.fd == this->sock_fd)
+//             {
+//                 try
+//                 {
+//                     client_fd = accept(this->sock_fd, (struct sockaddr*)&client_addr, &len);
+//                     fcntl(client_fd, F_SETFL, O_NONBLOCK);
+//                     if (client_fd < 0)
+//                     {
+//                         std::cerr << "Cannot accept client !\n";
+//                         exit(EXIT_FAILURE);
+//                     }
+//                     client_poll.fd = client_fd;
+//                     client_poll.events = POLLIN;
+//                     //client = 
+
+//                 }
+//                 catch(const std::exception& e)
+//                 {
+//                     std::cerr << e.what() << '\n';
+//                 }
+                
+//             }
+//         }
+//     }
+
+// }
 
 
 

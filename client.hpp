@@ -1,7 +1,7 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 #include <iostream>
-#include "Server.hpp"
+#include "server.hpp"
 
 
 
@@ -13,6 +13,7 @@ class Client
         int fd;
     public:
         Client();
+        Client(int fd, Server &server);
         ~Client();
         
 };
