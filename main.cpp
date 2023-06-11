@@ -1,16 +1,22 @@
 #include "server.hpp"
 //#include "Client.hpp"
 
+// void signalHandler(int signum)
+// {
+//   exit(signum);
+// }
+
 int main (int ac, char **av)
 {
   (void)ac;
   int port = atoi(av[1]);
   std::string pass = av[2];
-  // if (ac != 3)
-  // {
-  //   std::cerr << "too many arguments\n";
-  //   return (1);
-  // }
+  if (ac != 3)
+  {
+    std::cerr << "too many arguments\n";
+    return (1);
+  }
+  //signal(SIGABRT, signalHandler);
   try
   {
     Server my_server = Server(port, pass);

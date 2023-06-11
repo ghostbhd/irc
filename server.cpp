@@ -5,6 +5,12 @@ Server::Server()
     std::cout << "Launching The Server" << std::endl;
 }
 
+void Server::signalHandler(int signum)
+{
+  exit(signum);
+}
+
+
 Server::Server(int port, std::string password)
 {
     this->pass = password;
@@ -12,7 +18,7 @@ Server::Server(int port, std::string password)
 
     int connection;
     int len;
-    char buff[1024];
+    char buff[100];
     
     this->sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->sock_fd < 0)
@@ -44,15 +50,14 @@ Server::Server(int port, std::string password)
         std::cerr << "Server cannot connect\n";
         exit (EXIT_FAILURE);
     }
+    std::cout << "Server launched !\n";
+    signal(SIGABRT, signalHandler);
     while (1)
     {
-        //int bytes_to_read = read(connection, buff, 1024);
-        std::cout << "Server launched !" << buff;
-
-        std::string response = "Well received\n";
-        send(connection, response.c_str(), response.size(), 0);
+        read(connection, buff, 100);
+        std::cout << buff;
+        recv(this->sock_fd, buff, 100, 0);
     }
-
     close(connection);
     close(this->sock_fd);
 

@@ -7,6 +7,7 @@
 #include <fcntl.h> //for non_blocking sockets
 #include <sys/poll.h> //for multiplexing
 #include <cstdlib> //for exit() and EXIT_FAILURE
+#include <csignal> //for Cntrl+c / +z
 //#include <sys/select.h>
 #include <exception>
 #include <vector>
@@ -32,6 +33,7 @@ class Server
         std::string getPass()const;
         int getSock_fd()const;
         int getPort()const;
+        static void signalHandler(int signum);
 
         // fd_set *getReread();
         // void accept_sock();
