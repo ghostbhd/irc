@@ -16,8 +16,8 @@ class Server
 {
     private:
         std::string pass;
-        int sock_fd;
         int port;
+        int sock_fd;
         std::vector<pollfd> poll_vc ;
         //bool is_on;
         //char buffer[1024];
@@ -34,6 +34,7 @@ class Server
         int getSock_fd()const;
         int getPort()const;
         static void signalHandler(int signum);
+
 
         // fd_set *getReread();
         // void accept_sock();

@@ -7,19 +7,14 @@ Server::Server()
 
 void Server::signalHandler(int signum)
 {
-  exit(signum);
+    exit(signum);
 }
 
-
-Server::Server(int port, std::string password)
+Server::Server(int port, std::string password) : pass(password), port(port)
 {
-    this->pass = password;
-    this->port = port;
+    int fd_cnx;
+    int addlen;
 
-    int connection;
-    int len;
-    char buff[100];
-    
     this->sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->sock_fd < 0)
     {
@@ -32,40 +27,49 @@ Server::Server(int port, std::string password)
     sockaddr.sin_addr.s_addr = INADDR_ANY;
     sockaddr.sin_port = htons(this->port);
 
-    if (bind(this->sock_fd, (struct sockaddr*) &sockaddr, sizeof(sockaddr)) < 0) //struct used to specify the @ assigned to the sock
+    if (bind(this->sock_fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0) // struct used to specify the @ assigned to the sock
     {
         std::cerr << "Server cannot bind to the port\n";
-        exit (EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
-    if (listen(this->sock_fd, 100)) //marks a socket as passive, holds at most 100 connections
+    if (listen(this->sock_fd, 100)) // marks a socket as passive, holds at most 100 connections
     {
         std::cerr << "Server cannot listen on socket\n";
-        exit (EXIT_FAILURE);
+        exit(EXIT_FAILURE);
     }
 
-    len = sizeof(sockaddr);
-    connection = accept(this->sock_fd, (struct sockaddr*)&sockaddr, (socklen_t*)&len);
-    if (connection < 0)
-    {
-        std::cerr << "Server cannot connect\n";
-        exit (EXIT_FAILURE);
-    }
-    std::cout << "Server launched !\n";
-    signal(SIGABRT, signalHandler);
+    addlen = sizeof(sockaddr);
+
     while (1)
     {
-        read(connection, buff, 100);
-        std::cout << buff;
-        recv(this->sock_fd, buff, 100, 0);
-    }
-    close(connection);
-    close(this->sock_fd);
+        fd_cnx = accept(this->sock_fd, (struct sockaddr *)&sockaddr, (socklen_t *)&addlen);
+        if (fd_cnx < 0)
+        {
+            std::cerr << "Server cannot connect\n";
+            exit(EXIT_FAILURE);
+        }
 
+        std::cout << "Server launched !\n";
+
+        /* if (fcntl(fd_cnx, F_SETFL, O_NONBLOCK))
+        {
+            std::cerr << "Server cannot set non-blocking socket\n";
+            exit(EXIT_FAILURE);
+        } */
+        std::vector<char> buff(1024);
+        ssize_t rd = read(fd_cnx, buff.data(), 1024);
+        if (!rd)
+            break;
+        std::cout << buff.data();
+        recv(this->sock_fd, buff.data(), 1024, 0);
+    }
+    // close(fd_cnx);
+    close(this->sock_fd);
 }
 
 // Server::Server(int port, std::string password)
 // {
-//     //char buff[1024]; 
+//     //char buff[1024];
 //     this->pass = password;
 //     this->port = port;
 
@@ -92,7 +96,7 @@ Server::Server(int port, std::string password)
 //     if (fcntl(this->sock_fd, F_SETFL, O_NONBLOCK) < 0) //changes the properties of the file corresponding to fd
 //     {
 //         std::cerr << "Blocking socket\n";
-//         exit(EXIT_FAILURE); 
+//         exit(EXIT_FAILURE);
 //     }
 //     if (bind(this->sock_fd, (struct sockaddr*) &sockaddr, sizeof(sockaddr)) < 0) //struct used to specify the @ assigned to the sock
 //     {
@@ -104,7 +108,6 @@ Server::Server(int port, std::string password)
 //         std::cerr << "Server cannot listen on socket\n";
 //         exit (EXIT_FAILURE);
 //     }
-
 
 //     ///********Handling Multiplexing*********////////
 //     pollfd serv_poll;
@@ -144,21 +147,19 @@ Server::Server(int port, std::string password)
 //                     }
 //                     client_poll.fd = client_fd;
 //                     client_poll.events = POLLIN;
-//                     //client = 
+//                     //client =
 
 //                 }
 //                 catch(const std::exception& e)
 //                 {
 //                     std::cerr << e.what() << '\n';
 //                 }
-                
+
 //             }
 //         }
 //     }
 
 // }
-
-
 
 // void Server::launch_socket(void)
 // {
@@ -250,17 +251,17 @@ Server::~Server()
     std::cout << "Server is OFF !\n";
 }
 
-int Server::getPort()const
+int Server::getPort() const
 {
     return (this->port);
 }
 
-int Server::getSock_fd()const
+int Server::getSock_fd() const
 {
     return (this->sock_fd);
 }
 
-std::string Server::getPass()const
+std::string Server::getPass() const
 {
     return (this->pass);
 }
