@@ -15,30 +15,23 @@
 class Server
 {
     private:
-        std::string pass;
-        int port;
-        int sock_fd;
-        std::vector<pollfd> poll_vc ;
-        //bool is_on;
-        //char buffer[1024];
-        // fd_set read;
-        // fd_set write;
-        // fd_set reread;
-        // fd_set rewrite;
-    public:
+        std::string _pass;
+        int _port;
+        int _sock_fd;
+        sockaddr_in _sockaddr;
+        int _addlen;
+        std::vector<pollfd> _poll_vc ;
         Server();
+
+    public:
         Server(int port, std::string password);
         ~Server();
-        //void launch_socket();
         std::string getPass()const;
         int getSock_fd()const;
         int getPort()const;
         static void signalHandler(int signum);
+        void start();
 
-
-        // fd_set *getReread();
-        // void accept_sock();
-        // void receive_sock(int fd);
         class Error_Select : public std::exception
         {
             virtual const char *what() const throw();
