@@ -26,10 +26,14 @@ all : $(NAME)
 
 $(NAME) : ${SRCS}
 	${CPP} ${CFLAGS} $(SRCS) -o $(NAME)
-	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compele\n\t"\
-	$(WHITE)"Programe - "$(YELLOW)"($(NAME))\n" $(RESET)
+	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compiled\n\t"\
+	$(WHITE)"Program - "$(YELLOW)"($(NAME))\n" $(RESET)
 
 clean :
+	${RM} $(NAME)
+	@echo $(BOLD)$(RED)"\n✅\tDelete" $(WHITE)"[$(NAME)]\n" $(RESET)
+
+fclean :
 	${RM} $(NAME)
 	@echo $(BOLD)$(RED)"\n✅\tDelete" $(WHITE)"[$(NAME)]\n" $(RESET)
 

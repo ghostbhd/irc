@@ -16,28 +16,21 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
-    memset(&_sockaddr, 0, sizeof _sockaddr);
+    memset(&_sockaddr, 0, sizeof (_sockaddr));
+
+    _sockaddr.sin_family = AF_INET;
+    _sockaddr.sin_addr.s_addr = INADDR_ANY;
+    _sockaddr.sin_port = htons(this->_port);
+
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+
     if (this->_sock_fd < 0)
     {
         std::cerr << "Cannot create socket!\n";
         exit(EXIT_FAILURE);
     }
-    _sockaddr.sin_family = AF_INET;
-    _sockaddr.sin_addr.s_addr = INADDR_ANY;
-    _sockaddr.sin_port = htons(this->_port);
 
-    if (bind(this->_sock_fd, (struct sockaddr*) &_sockaddr, sizeof(_sockaddr)) < 0) //struct used to specify the @ assigned to the sock
-    {
-        std::cerr << "Server cannot bind to the port\n";
-        exit (EXIT_FAILURE);
-    }
-    if (listen(this->_sock_fd, 100) < 0) //marks a socket as passive, holds at most 100 connections
-    {
-        std::cerr << "Server cannot listen on socket\n";
-        exit (EXIT_FAILURE);
-    }
-    // int opt = 1;
+    //int opt = 1;
     // if (setsockopt(this->_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) //to reuse port & bind into the @ 
     // {
     //     std::cerr << "Server cannot reuse socket add\n";
@@ -53,6 +46,18 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
     //     std::cerr << "Blocking mode in socket\n";
     //     exit(EXIT_FAILURE);
     // }
+    int binding = bind(this->_sock_fd, (struct sockaddr*) &_sockaddr, sizeof(_sockaddr));
+    if (binding < 0) //struct used to specify the @ assigned to the sock
+    {
+        std::cerr << "Server cannot bind to the port\n";
+        exit (EXIT_FAILURE);
+    }
+    int listening = listen(this->_sock_fd, 100);
+    if (listening < 0) //marks a socket as passive, holds at most 100 connections
+    {
+        std::cerr << "Server cannot listen on socket\n";
+        exit (EXIT_FAILURE);
+    }
 }
 
 
