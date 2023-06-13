@@ -8,7 +8,6 @@
 #include <sys/poll.h> //for multiplexing
 #include <cstdlib> //for exit() and EXIT_FAILURE
 #include <csignal> //for Cntrl+c / +z
-//#include <sys/select.h>
 #include <exception>
 #include <vector>
 
@@ -19,7 +18,6 @@ class Server
         int _port;
         int _sock_fd;
         sockaddr_in _sockaddr;
-        //int _addlen;
         std::vector<pollfd> _poll_vc ;
         Server();
 
@@ -29,7 +27,6 @@ class Server
         std::string getPass()const;
         int getSock_fd()const;
         int getPort()const;
-        static void signalHandler(int signum);
         void start();
 
         class Error_Select : public std::exception

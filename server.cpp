@@ -15,14 +15,14 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         std::cerr << "Password is empty\n";
         exit(EXIT_FAILURE);
     }
+
+    memset(&_sockaddr, 0, sizeof _sockaddr);
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->_sock_fd < 0)
     {
         std::cerr << "Cannot create socket!\n";
         exit(EXIT_FAILURE);
     }
-
-    // sockaddr_in sockaddr;
     _sockaddr.sin_family = AF_INET;
     _sockaddr.sin_addr.s_addr = INADDR_ANY;
     _sockaddr.sin_port = htons(this->_port);
@@ -32,11 +32,27 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         std::cerr << "Server cannot bind to the port\n";
         exit (EXIT_FAILURE);
     }
-    if (listen(this->_sock_fd, 100)) //marks a socket as passive, holds at most 100 connections
+    if (listen(this->_sock_fd, 100) < 0) //marks a socket as passive, holds at most 100 connections
     {
         std::cerr << "Server cannot listen on socket\n";
         exit (EXIT_FAILURE);
     }
+    // int opt = 1;
+    // if (setsockopt(this->_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) //to reuse port & bind into the @ 
+    // {
+    //     std::cerr << "Server cannot reuse socket add\n";
+    //     exit(EXIT_FAILURE);
+    // }
+    // if (setsockopt(this->_sock_fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0) //to reuse port & bind into the @ 
+    // {
+    //     std::cerr << "Server cannot reuse socket port\n";
+    //     exit(EXIT_FAILURE);
+    // }
+    // if (fcntl(this->_sock_fd, F_SETFL, O_NONBLOCK) < 0) //will not block the program's execution, allowing it to continue running even if there is no data to read or if writing would block.
+    // {
+    //     std::cerr << "Blocking mode in socket\n";
+    //     exit(EXIT_FAILURE);
+    // }
 }
 
 
