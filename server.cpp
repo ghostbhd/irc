@@ -15,7 +15,6 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         std::cerr << "Password is empty\n";
         exit(EXIT_FAILURE);
     }
-
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (this->_sock_fd < 0)
     {
@@ -23,45 +22,44 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
+    // sockaddr_in sockaddr;
     _sockaddr.sin_family = AF_INET;
     _sockaddr.sin_addr.s_addr = INADDR_ANY;
     _sockaddr.sin_port = htons(this->_port);
 
-    _addlen = sizeof(_sockaddr);
-
-    if (bind(this->_sock_fd, (struct sockaddr *)&_sockaddr, sizeof(_sockaddr)) < 0) // struct used to specify the @ assigned to the sock
+    if (bind(this->_sock_fd, (struct sockaddr*) &_sockaddr, sizeof(_sockaddr)) < 0) //struct used to specify the @ assigned to the sock
     {
         std::cerr << "Server cannot bind to the port\n";
-        exit(EXIT_FAILURE);
+        exit (EXIT_FAILURE);
     }
-    if (listen(this->_sock_fd, 100)) // marks a socket as passive, holds at most 100 connections
+    if (listen(this->_sock_fd, 100)) //marks a socket as passive, holds at most 100 connections
     {
         std::cerr << "Server cannot listen on socket\n";
-        exit(EXIT_FAILURE);
+        exit (EXIT_FAILURE);
     }
 }
 
+
 void Server::start()
 {
+    int len = sizeof(sockaddr);
+    int connection = accept(this->_sock_fd, (struct sockaddr*)&_sockaddr, (socklen_t*)&len);
+    if (connection < 0)
+    {
+        std::cerr << "Server cannot connect\n";
+        exit (EXIT_FAILURE);
+    }
+    std::cout << "Server launched !\n";
     while (1)
     {
-        int fd_cnx = accept(this->_sock_fd, (struct sockaddr *)&_sockaddr, (socklen_t *)&_addlen);
-        if (fd_cnx < 0)
-        {
-            std::cerr << "Server cannot connect\n";
-            exit(EXIT_FAILURE);
-        }
-
-        std::cout << "Server launched !\n";
-
         std::vector<char> buff(1024);
-        ssize_t rd = read(fd_cnx, buff.data(), 1024);
+        size_t rd = read(connection, buff.data(), 1024);
         if (!rd)
             break;
         std::cout << buff.data();
         recv(this->_sock_fd, buff.data(), 1024, 0);
     }
-    // close(fd_cnx);
+    close(connection);
     close(this->_sock_fd);
 }
 

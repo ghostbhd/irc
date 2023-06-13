@@ -19,7 +19,7 @@ class Server
         int _port;
         int _sock_fd;
         sockaddr_in _sockaddr;
-        int _addlen;
+        //int _addlen;
         std::vector<pollfd> _poll_vc ;
         Server();
 
