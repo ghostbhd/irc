@@ -6,7 +6,7 @@ CPP = @c++
 CFLAGS = -Wall -Wextra -Werror -std=c++98
 RM = @rm -rf
 AR = @ar -rc
-NAME = irc
+NAME = ircserv
 sanitize = -fsanitize=address -static-libasan -g3
 
 # Colors ----------------------------------------------
