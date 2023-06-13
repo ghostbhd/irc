@@ -1,32 +1,36 @@
-# **************************************************************************** #
-#                                                                              #
-#                                                         :::      ::::::::    #
-#    Makefile                                           :+:      :+:    :+:    #
-#                                                     +:+ +:+         +:+      #
-#    By: ohrete <ohrete@student.42.fr>              +#+  +:+       +#+         #
-#                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2023/04/08 00:06:29 by ohrete            #+#    #+#              #
-#    Updated: 2023/06/05 23:36:52 by ohrete           ###   ########.fr        #
-#                                                                              #
-# **************************************************************************** #
+SHELL := /bin/zsh #using zsh shell
 
-NAME = ircserv
+# Variables -------------------------------------------
+SRCS =	*.cpp
+CPP = @c++
+CFLAGS = -Wall -Wextra -Werror -std=c++98
+RM = @rm -rf
+AR = @ar -rc
+NAME = irc
+sanitize = -fsanitize=address -static-libasan -g3
 
-CPPFLAGS = -Wall -Wextra -Werror -std=c++98
+# Colors ----------------------------------------------
+RESET := "\x1b[0m"
+BOLD := "\x1b[1m"
+BLACK := "\x1b[30m"
+RED := "\x1b[31m"
+GREEN := "\x1b[32m"
+YELLOW := "\x1b[33m"
+BLUE := "\x1b[34m"
+MAGENTA := "\x1b[35m"
+CYAN := "\x1b[36m"
+WHITE := "\x1b[37m"
+#------------------------------------------------------
 
-SRCS = main.cpp server.cpp
+all : $(NAME)
 
-OBJS = ${SRCS:.cpp=.o}
-
-all : ${NAME}
-
-${NAME} : ${OBJS}
-	c++ ${CPPFLAGS} ${OBJS} -o ${NAME}
+$(NAME) : ${SRCS}
+	${CPP} ${CFLAGS} $(SRCS) -o $(NAME)
+	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compele\n\t"\
+	$(WHITE)"Programe - "$(YELLOW)"($(NAME))\n" $(RESET)
 
 clean :
-	rm -rf ${OBJS}
-	
-fclean : clean
-	rm -rf ${NAME}
+	${RM} $(NAME)
+	@echo $(BOLD)$(RED)"\n✅\tDelete" $(WHITE)"[$(NAME)]\n" $(RESET)
 
-re : fclean all
+re : clean all

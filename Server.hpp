@@ -9,6 +9,7 @@
 #include <cstdlib> //for exit() and EXIT_FAILURE
 #include <csignal> //for Cntrl+c / +z
 #include <exception>
+#include <cstring> //for memset
 #include <vector>
 
 class Server
