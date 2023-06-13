@@ -20,6 +20,7 @@ class Server
         int _sock_fd;
         sockaddr_in _sockaddr;
         std::vector<pollfd> _poll_vc ;
+        //char buffer[500];
         Server();
 
     public:
