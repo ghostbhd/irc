@@ -101,6 +101,7 @@ void Server::start()
                 {
                     client_fd = accept(_sock_fd, (struct sockaddr*) &addr_client, &len);
                     fcntl(client_fd, F_SETFL, O_NONBLOCK);
+                    
                     if (client_fd < 0)
                     {
                         std::cerr << "Cannot accept client\n";
@@ -123,10 +124,10 @@ void Server::start()
             else
             {
                 std::vector<char> buffer(1024);
-                memset(buffer.data(), 0, sizeof((size_t)buffer.data()));
-                size_t rd = read(client_fd, buffer.data(), 1024);
+                // memset(buffer.data(), 0, sizeof((size_t)buffer.data()));
+                size_t rd = read(current.fd, buffer.data(), 1024);
                 if (!rd)
-                    break;
+                    return ;
                 std::cout << buffer.data();
                 recv(current.fd, buffer.data(), 1024, 0);
             }
