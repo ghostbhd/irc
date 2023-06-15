@@ -24,6 +24,7 @@ class Server
         void start();
         void newClient();
         void ClientRecv(int client_fd);
+        std::string deleteNewLine(char *str);
 
         class Error_Select : public std::exception
         {

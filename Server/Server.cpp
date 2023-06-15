@@ -53,10 +53,6 @@ void Server::start()
     server_poll.fd = this->_sock_fd;
     server_poll.events = POLLIN;
 
-    // setting the memory to zero
-
-    // declaring socket client
-
     // FILL A VECTOR OF SOCKETS = SERVERS, stock them in vec
     this->_poll_vc.push_back(server_poll);
 
@@ -106,12 +102,59 @@ void Server::newClient()
 
 void Server::ClientRecv(int client_fd)
 {
-    std::vector<char> buffer(1024);
-    size_t rd = read(client_fd, buffer.data(), 1024);
+    std::vector<char> buffer(5000);
+    size_t rd = read(client_fd, buffer.data(), buffer.size());
     if (!rd)
         close(client_fd);
-    std::cout << buffer.data();
-    recv(client_fd, buffer.data(), 1024, 0);
+    std::string str = deleteNewLine(buffer.data());
+    if (_clients[client_fd].getAuth() == false)
+    {
+        if (str.compare(_pass) == 0)
+        {
+            _clients[client_fd].setAuth(true);
+            send(client_fd, "Nickname: ", 11, 0);
+        }
+        else
+            send(client_fd, "Wrong Password!\n\nEnter Password: ", 34, 0);
+    }
+    else if (_clients[client_fd].getNickname().empty())
+    {
+        if (str.empty())
+        {
+            send(client_fd, "Nickname cannot be empty!\n", 26, 0);
+            send(client_fd, "Nickname: ", 10, 0);
+        }
+        else
+        {
+            _clients[client_fd].setNickname(str);
+            send(client_fd, "Username: ", 11, 0);
+        }
+    }
+    else if (_clients[client_fd].getUsername().empty())
+    {
+        if (str.empty())
+        {
+            send(client_fd, "Username cannot be empty!\n", 26, 0);
+            send(client_fd, "Username: ", 10, 0);
+        }
+        else
+        {
+            _clients[client_fd].setUsername(str);
+            send(client_fd, "Welcome to the server!\n", 23, 0);
+        }
+    }
+    else
+    {
+        // all client data is set
+    }
+}
+
+std::string Server::deleteNewLine(char *str)
+{
+    std::string s(str);
+    s.erase(std::remove(s.begin(), s.end(), '\n'), s.end());
+    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+    return (s);
 }
 
 Server::~Server() { std::cout << "Server is OFF !\n"; }

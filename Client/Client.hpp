@@ -8,12 +8,12 @@ class Client
 private:
     int _fd;
     bool _auth;
-    std::string _nickname;
     std::string _pass;
+    std::string _nickname;
     std::string _username;
-    Client() {}
 
 public:
+    Client() {}
     Client(int fd, std::string pass);
     ~Client() {}
 
