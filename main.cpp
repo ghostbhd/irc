@@ -1,4 +1,4 @@
-#include "Server.hpp"
+#include "Server/Server.hpp"
 
 int main(int ac, char **av)
 {
@@ -21,4 +21,5 @@ int main(int ac, char **av)
     std::cout << e.what() << std::endl;
   }
   return (0);
+
 }

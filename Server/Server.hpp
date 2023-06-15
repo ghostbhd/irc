@@ -30,6 +30,8 @@ class Server
         int getSock_fd()const;
         int getPort()const;
         void start();
+        void newClient();
+        void ClientRecv(int client_fd);
 
         class Error_Select : public std::exception
         {

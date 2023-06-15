@@ -1,7 +1,7 @@
 SHELL := /bin/zsh #using zsh shell
 
 # Variables -------------------------------------------
-SRCS =	*.cpp
+SRCS = *.cpp	Server/*.cpp Client/*.cpp
 CPP = @c++
 CFLAGS = -Wall -Wextra -Werror -std=c++98
 RM = @rm -rf
