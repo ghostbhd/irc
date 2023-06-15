@@ -146,6 +146,10 @@ void Server::ClientRecv(int client_fd)
     else
     {
         // all client data is set
+        //print client data
+        std::cout << "Client " << client_fd << ":\n";
+        std::cout << "Nickname: " << _clients[client_fd].getNickname() << "\n";
+        std::cout << "Username: " << _clients[client_fd].getUsername() << "\n\n";
     }
 }
 
