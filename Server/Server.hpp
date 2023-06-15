@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include "../header.h"
+#include "../Client/Client.hpp"
 
 class Server
 {
@@ -11,7 +12,7 @@ class Server
         int _sock_fd;
         sockaddr_in _sockaddr;
         std::vector<pollfd> _poll_vc ;
-        //char buffer[500];
+        std::map<int, Client> _clients;
         Server();
 
     public:

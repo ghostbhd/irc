@@ -12,5 +12,6 @@
 #include <exception> //for exception
 #include <cstring> //for memset
 #include <vector> //for poll vector
+#include <map> //for map
 
 #endif

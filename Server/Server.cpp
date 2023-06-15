@@ -99,6 +99,8 @@ void Server::newClient()
     client_poll.fd = client_fd;
     client_poll.events = POLLIN;
     _poll_vc.push_back(client_poll);
+    Client cl(client_fd, _pass);
+    _clients.insert(std::make_pair(client_fd, cl));
     send(client_fd, "Enter Password: ", 17, 0);
 }
 
