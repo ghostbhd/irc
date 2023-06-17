@@ -6,35 +6,49 @@
 
 class Server
 {
-    private:
-        std::string _pass;
-        int _port;
-        int _sock_fd;
-        sockaddr_in _sockaddr;
-        std::vector<pollfd> _poll_vc ;
-        std::map<int, Client> _clients;
-        Server();
+private:
+    std::string _pass;
+    int _port;
+    int _sock_fd;
+    sockaddr_in _sockaddr;
+    std::vector<pollfd> _poll_vc;
+    std::map<int, Client> _clients;
 
-    public:
-        Server(int port, std::string password);
-        ~Server();
-        std::string getPass()const;
-        int getSock_fd()const;
-        int getPort()const;
-        void start();
-        void newClient();
-        void ClientRecv(int client_fd);
-        std::string deleteNewLine(char *str);
+    std::map<int, std::string> _errorMsg;
 
-        class Error_Select : public std::exception
-        {
-            virtual const char *what() const throw();
-        };
-        class Error_Accept : public std::exception
-        {
-            virtual const char *what() const throw();
-        };
+    Server();
+
+public:
+    // Constructor - Destructor --------------------
+    Server(int port, std::string password);
+    ~Server();
+
+    // Getters -------------------------------------
+    std::string getPass() const;
+    int getSock_fd() const;
+    int getPort() const;
+
+    // Main functions ------------------------------
+    void start();
+    void newClient();
+    void ClientRecv(int client_fd);
+
+    // Utils ---------------------------------------
+    std::string deleteNewLine(char *str);
+
+    // Errors --------------------------------------
+    void initErrorMsg();
+    void sendError(int client_fd, int error_code);
+
+    // Exceptions ----------------------------------
+    class Error_Select : public std::exception
+    {
+        virtual const char *what() const throw();
+    };
+    class Error_Accept : public std::exception
+    {
+        virtual const char *what() const throw();
+    };
 };
-
 
 #endif

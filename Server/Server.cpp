@@ -16,10 +16,9 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
-    //memset(&_sockaddr, 0, sizeof(_sockaddr));
+    // memset(&_sockaddr, 0, sizeof(_sockaddr));
 
-    
-    this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); //AF_INET=> IPV4, SOCK_STREAM=>TCP
+    this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
     _sockaddr.sin_family = AF_INET;
     _sockaddr.sin_addr.s_addr = INADDR_ANY;
     _sockaddr.sin_port = htons(this->_port);
@@ -49,21 +48,19 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
     std::cout << "Server launched !\n";
-
 }
 
+// Main functions ---------------------------------------------------------------------------------------
 void Server::start()
 {
-    // Declaring poll struct FOR SERVER SIDE
     pollfd server_poll;
     memset(&server_poll, 0, sizeof(server_poll));
-    // FILLING THE STRUCT FOR THE SERVER SIDE
+
     server_poll.fd = this->_sock_fd;
     server_poll.events = POLLIN;
 
-    // FILL A VECTOR OF SOCKETS = SERVERS, stock them in vec
     this->_poll_vc.push_back(server_poll);
-
+    initErrorMsg();
     while (1)
     {
         if (poll(_poll_vc.data(), _poll_vc.size(), 0) < 0)
@@ -105,7 +102,7 @@ void Server::newClient()
     _poll_vc.push_back(client_poll);
     Client cl(client_fd, _pass);
     _clients.insert(std::make_pair(client_fd, cl));
-    send(client_fd, "Enter Password: ", 17, 0);
+    std::cout << "Client " << client_fd << " connected!\n";
 }
 
 void Server::ClientRecv(int client_fd)
@@ -114,56 +111,74 @@ void Server::ClientRecv(int client_fd)
     size_t rd = read(client_fd, buffer.data(), buffer.size());
     if (!rd)
     {
-        std::cout << "Client "<< client_fd << " disconnected!\n";
+        std::cout << "Client " << client_fd << " disconnected!\n";
         close(client_fd);
     }
     std::string str = deleteNewLine(buffer.data());
+    if (str.empty())
+        return;
+    size_t pos = str.find(":");
+    if (pos == std::string::npos)
+    {
+        // <client> <command> :Unknown command
+        sendError(client_fd, ERR_NEEDMOREPARAMS);
+        return;
+    }
+    std::string cmd = str.substr(0, pos);
     if (_clients[client_fd].getAuth() == false)
     {
-        if (str.compare(_pass) == 0)
-        {
-            _clients[client_fd].setAuth(true);
-            send(client_fd, "Nickname: ", 11, 0);
-        }
-        else
-            send(client_fd, "Wrong Password!\n\nEnter Password: ", 34, 0);
-    }
-    else if (_clients[client_fd].getNickname().empty())
-    {
-        if (str.empty())
-        {
-            send(client_fd, "Nickname cannot be empty!\n", 26, 0);
-            send(client_fd, "Nickname: ", 10, 0);
-        }
+        if (cmd != "PASS")
+            sendError(client_fd, ERR_NOTREGISTERED);
         else
         {
-            _clients[client_fd].setNickname(str);
-            send(client_fd, "Username: ", 11, 0);
-        }
-    }
-    else if (_clients[client_fd].getUsername().empty())
-    {
-        if (str.empty())
-        {
-            send(client_fd, "Username cannot be empty!\n", 26, 0);
-            send(client_fd, "Username: ", 10, 0);
-        }
-        else
-        {
-            _clients[client_fd].setUsername(str);
-            send(client_fd, "Welcome to the server!\n", 23, 0);
+            std::string pass(str.substr(pos + 2));
+            if (pass != _pass)
+                sendError(client_fd, ERR_PASSWDMISMATCH);
+            else
+                _clients[client_fd].setAuth(true);
         }
     }
     else
     {
-        // all client data is set
-        //print client data
-        std::cout << "Client " << client_fd << ":\n";
-        std::cout << "Nickname: " << _clients[client_fd].getNickname() << "\n";
-        std::cout << "Username: " << _clients[client_fd].getUsername() << "\n\n";
+        if (_clients[client_fd].getNickname().empty() || _clients[client_fd].getUsername().empty())
+        {
+            if (cmd == "NICK")
+            {
+                std::string nick(str.substr(pos + 2));
+                if (nick.empty())
+                    sendError(client_fd, ERR_NEEDMOREPARAMS);
+                else
+                {
+                    if (_clients[client_fd].getNickname().empty())
+                        _clients[client_fd].setNickname(nick);
+                    else
+                        sendError(client_fd, ERR_NICKNAMEINUSE);
+                }
+            }
+            else if (cmd == "USER")
+            {
+                std::string user(str.substr(pos + 2));
+                if (user.empty())
+                    sendError(client_fd, ERR_NEEDMOREPARAMS);
+                else
+                {
+                    if (_clients[client_fd].getUsername().empty())
+                        _clients[client_fd].setUsername(user);
+                    else
+                        sendError(client_fd, ERR_ALREADYREGISTERED);
+                }
+            }
+            else
+                sendError(client_fd, ERR_NOTREGISTERED);
+        }
+        else
+        {
+            // Ather commands
+        }
     }
 }
 
+// Utils ------------------------------------------------------------------------------------------------
 std::string Server::deleteNewLine(char *str)
 {
     std::string s(str);
@@ -172,14 +187,72 @@ std::string Server::deleteNewLine(char *str)
     return (s);
 }
 
+// Error handling ---------------------------------------------------------------------------------------
+void Server::initErrorMsg()
+{
+
+    /*
+        ERR_NICKNAMEINUSE (433)
+        "<client> <nick> :Nickname is already in use"
+
+        ERR_USERONCHANNEL (443)
+        "<client> <nick> <channel> :is already on channel"
+
+        ERR_NOTREGISTERED (451)
+        "<client> :You have not registered"
+
+        ERR_NEEDMOREPARAMS (461)
+        "<client> <command> :Not enough parameters"
+
+        ERR_PASSWDMISMATCH (464)
+        "<client> :Password incorrect"
+
+        ERR_UMODEUNKNOWNFLAG (501)
+        "<client> :Unknown MODE flag"
+
+        ERR_ALREADYREGISTERED (462)
+        "<client> :You may not reregister"
+    */
+
+    _errorMsg.insert(std::make_pair(433, " :Nickname is already in use\n"));
+    _errorMsg.insert(std::make_pair(443, " :is already on channel\n"));
+    _errorMsg.insert(std::make_pair(451, " :You have not registered\n"));
+    _errorMsg.insert(std::make_pair(461, " :Not enough parameters\n"));
+    _errorMsg.insert(std::make_pair(464, " :Password incorrect\n"));
+    _errorMsg.insert(std::make_pair(501, " :Unknown MODE flag\n"));
+    _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
+}
+
+void Server::sendError(int client_fd, int error_code) // need to add channel name to error msg
+{
+    std::string error;
+    if (error_code == 433)
+        error = std::to_string(client_fd) + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+    // else if (error_code == 443)
+    //     error = std::to_string(client_fd) + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+    else if (error_code == 451)
+        error = std::to_string(client_fd) + _errorMsg[error_code];
+    else if (error_code == 461)
+        error = std::to_string(client_fd) + _errorMsg[error_code];
+    else if (error_code == 464)
+        error = std::to_string(client_fd) + _errorMsg[error_code];
+    else if (error_code == 501)
+        error = std::to_string(client_fd) + _errorMsg[error_code];
+    else if (error_code == 462)
+        error = std::to_string(client_fd) + _errorMsg[error_code];
+
+    send(client_fd, error.c_str(), error.size(), 0);
+}
+
+// Destructor -------------------------------------------------------------------------------------------
 Server::~Server() { std::cout << "Server is OFF !\n"; }
 
-int Server::getPort() const { return (this->_port); }
+// Getters ----------------------------------------------------------------------------------------------
+int Server::getPort() const { return (this->_port); }         // _port
+int Server::getSock_fd() const { return (this->_sock_fd); }   // _sock_fd
+std::string Server::getPass() const { return (this->_pass); } // _pass
 
-int Server::getSock_fd() const { return (this->_sock_fd); }
-
-std::string Server::getPass() const { return (this->_pass); }
-
+// Exceptions --------------------------------------------------------------------------------------------
 const char *Server::Error_Select::what() const throw() { return ("Error: Cannot SELECT socket!\n"); }
 
 const char *Server::Error_Accept::what() const throw() { return ("Error: Cannot Accept socket!\n"); }

@@ -28,8 +28,7 @@ all : $(NAME)
 $(NAME) : ${SRCS}
 	$(CONTROL)
 	${CPP} ${CFLAGS} $(SRCS) -o $(NAME) 
-	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compiled\n\t"\
-	$(WHITE)"Program - "$(YELLOW)"($(NAME))\n" $(RESET)
+	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compiled\n\t" $(WHITE)"Program - "$(YELLOW)"($(NAME))\n" $(RESET)
 
 clean :
 	${RM} $(NAME)
