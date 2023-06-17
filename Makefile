@@ -4,6 +4,7 @@ SHELL := /bin/zsh #using zsh shell
 SRCS = *.cpp	Server/*.cpp Client/*.cpp
 CPP = @c++
 CFLAGS = -Wall -Wextra -Werror -std=c++98
+CONTROL = @stty -echoctl
 RM = @rm -rf
 AR = @ar -rc
 NAME = ircserv
@@ -25,7 +26,8 @@ WHITE := "\x1b[37m"
 all : $(NAME)
 
 $(NAME) : ${SRCS}
-	${CPP} ${CFLAGS} $(SRCS) -o $(NAME)
+	$(CONTROL)
+	${CPP} ${CFLAGS} $(SRCS) -o $(NAME) 
 	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compiled\n\t"\
 	$(WHITE)"Program - "$(YELLOW)"($(NAME))\n" $(RESET)
 

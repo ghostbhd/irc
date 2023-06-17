@@ -16,24 +16,30 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
-    memset(&_sockaddr, 0, sizeof(_sockaddr));
+    //memset(&_sockaddr, 0, sizeof(_sockaddr));
 
+    
+    this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); //AF_INET=> IPV4, SOCK_STREAM=>TCP
     _sockaddr.sin_family = AF_INET;
     _sockaddr.sin_addr.s_addr = INADDR_ANY;
     _sockaddr.sin_port = htons(this->_port);
-
-    this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (this->_sock_fd < 0)
     {
         std::cerr << "Cannot create socket!\n";
         exit(EXIT_FAILURE);
     }
-
+    int opt = 1;
+    setsockopt(_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    // if (setsockopt(_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+    // {
+    //     std::cerr << "Cannot reuse the address\n";
+    //     exit(EXIT_FAILURE);
+    // }
     int binding = bind(this->_sock_fd, (struct sockaddr *)&_sockaddr, sizeof(_sockaddr));
     if (binding < 0) // struct used to specify the @ assigned to the sock
     {
-        std::cerr << "Server cannot bind to the port\n";
+        std::cerr << "Server cannot bind to the address/port \n";
         exit(EXIT_FAILURE);
     }
     int listening = listen(this->_sock_fd, 100);
@@ -42,6 +48,8 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         std::cerr << "Server cannot listen on socket\n";
         exit(EXIT_FAILURE);
     }
+    std::cout << "Server launched !\n";
+
 }
 
 void Server::start()
@@ -105,7 +113,10 @@ void Server::ClientRecv(int client_fd)
     std::vector<char> buffer(5000);
     size_t rd = read(client_fd, buffer.data(), buffer.size());
     if (!rd)
+    {
+        std::cout << "Client "<< client_fd << " disconnected!\n";
         close(client_fd);
+    }
     std::string str = deleteNewLine(buffer.data());
     if (_clients[client_fd].getAuth() == false)
     {
