@@ -8,11 +8,13 @@
 #include <fcntl.h> //for non_blocking sockets
 #include <sys/poll.h> //for multiplexing
 #include <cstdlib> //for exit() and EXIT_FAILURE
+#include <string> //for string
 #include <csignal> //for Cntrl+c 
 #include <exception> //for exception
 #include <cstring> //for memset
 #include <vector> //for poll vector
 #include <map> //for map
+#include <sstream> // for stringstream
 
 
 /*

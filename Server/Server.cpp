@@ -179,13 +179,25 @@ void Server::ClientRecv(int client_fd)
 }
 
 // Utils ------------------------------------------------------------------------------------------------
-std::string Server::deleteNewLine(char *str)
+std::string Server::deleteNewLine(char* str)
 {
     std::string s(str);
-    s.erase(std::remove(s.begin(), s.end(), '\n'), s.end());
-    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
-    return (s);
+
+    std::string::size_type pos = 0;
+    while ((pos = s.find('\n', pos)) != std::string::npos)
+    {
+        s.erase(pos, 1);
+    }
+
+    pos = 0;
+    while ((pos = s.find('\r', pos)) != std::string::npos)
+    {
+        s.erase(pos, 1);
+    }
+
+    return s;
 }
+
 
 // Error handling ---------------------------------------------------------------------------------------
 void Server::initErrorMsg()
@@ -226,20 +238,24 @@ void Server::initErrorMsg()
 void Server::sendError(int client_fd, int error_code) // need to add channel name to error msg
 {
     std::string error;
+    std::string fd_string;
+    std::stringstream ss;
+    ss << client_fd;
+    ss >> fd_string;
     if (error_code == 433)
-        error = std::to_string(client_fd) + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+        error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
     // else if (error_code == 443)
-    //     error = std::to_string(client_fd) + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+    //     error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
     else if (error_code == 451)
-        error = std::to_string(client_fd) + _errorMsg[error_code];
+        error = fd_string + _errorMsg[error_code];
     else if (error_code == 461)
-        error = std::to_string(client_fd) + _errorMsg[error_code];
+        error = fd_string + _errorMsg[error_code];
     else if (error_code == 464)
-        error = std::to_string(client_fd) + _errorMsg[error_code];
+        error = fd_string + _errorMsg[error_code];
     else if (error_code == 501)
-        error = std::to_string(client_fd) + _errorMsg[error_code];
+        error = fd_string + _errorMsg[error_code];
     else if (error_code == 462)
-        error = std::to_string(client_fd) + _errorMsg[error_code];
+        error = fd_string + _errorMsg[error_code];
 
     send(client_fd, error.c_str(), error.size(), 0);
 }
