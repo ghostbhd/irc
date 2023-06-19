@@ -9,6 +9,9 @@ void sighandler(int signum)
 
 int main(int ac, char **av)
 {
+
+  std::string AdminPass("admin");
+
   if (ac != 3)
   {
     std::cerr << "Invalid number of arguments\n";

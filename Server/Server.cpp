@@ -118,62 +118,63 @@ void Server::ClientRecv(int client_fd)
     if (str.empty())
         return;
     size_t pos = str.find(":");
-    if (pos == std::string::npos)
+    if (pos == std::string::npos || pos == 0 || str[pos - 1] != ' ')
     {
-        // <client> <command> :Unknown command
-        sendError(client_fd, ERR_NEEDMOREPARAMS);
+        sendError(client_fd, ERR_NEEDMOREPARAMS, str);
         return;
     }
-    std::string cmd = str.substr(0, pos);
-    if (_clients[client_fd].getAuth() == false)
+
+    std::string cmd = str.substr(0, pos); // Parameter
+
+    if (_clients[client_fd].getAuth() == false) // Pass
     {
         if (cmd != "PASS")
-            sendError(client_fd, ERR_NOTREGISTERED);
+            sendError(client_fd, ERR_NOTREGISTERED, str);
         else
         {
             std::string pass(str.substr(pos + 2));
             if (pass != _pass)
-                sendError(client_fd, ERR_PASSWDMISMATCH);
+                sendError(client_fd, ERR_PASSWDMISMATCH, str);
             else
                 _clients[client_fd].setAuth(true);
         }
     }
-    else
+    else // NICK & USER
     {
         if (_clients[client_fd].getNickname().empty() || _clients[client_fd].getUsername().empty())
         {
-            if (cmd == "NICK")
+            if (cmd == "NICK" || cmd == "nick")
             {
                 std::string nick(str.substr(pos + 2));
                 if (nick.empty())
-                    sendError(client_fd, ERR_NEEDMOREPARAMS);
+                    sendError(client_fd, ERR_NEEDMOREPARAMS, str);
                 else
                 {
                     if (_clients[client_fd].getNickname().empty())
                         _clients[client_fd].setNickname(nick);
                     else
-                        sendError(client_fd, ERR_NICKNAMEINUSE);
+                        sendError(client_fd, ERR_NICKNAMEINUSE, str);
                 }
             }
-            else if (cmd == "USER")
+            else if (cmd == "USER" || cmd == "user")
             {
                 std::string user(str.substr(pos + 2));
                 if (user.empty())
-                    sendError(client_fd, ERR_NEEDMOREPARAMS);
+                    sendError(client_fd, ERR_NEEDMOREPARAMS, str);
                 else
                 {
                     if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user);
                     else
-                        sendError(client_fd, ERR_ALREADYREGISTERED);
+                        sendError(client_fd, ERR_ALREADYREGISTERED, str);
                 }
             }
             else
-                sendError(client_fd, ERR_NOTREGISTERED);
+                sendError(client_fd, ERR_NOTREGISTERED, str);
         }
         else
         {
-            // Ather commands
+            // commands
         }
     }
 }
@@ -198,34 +199,9 @@ std::string Server::deleteNewLine(char* str)
     return s;
 }
 
-
 // Error handling ---------------------------------------------------------------------------------------
 void Server::initErrorMsg()
 {
-
-    /*
-        ERR_NICKNAMEINUSE (433)
-        "<client> <nick> :Nickname is already in use"
-
-        ERR_USERONCHANNEL (443)
-        "<client> <nick> <channel> :is already on channel"
-
-        ERR_NOTREGISTERED (451)
-        "<client> :You have not registered"
-
-        ERR_NEEDMOREPARAMS (461)
-        "<client> <command> :Not enough parameters"
-
-        ERR_PASSWDMISMATCH (464)
-        "<client> :Password incorrect"
-
-        ERR_UMODEUNKNOWNFLAG (501)
-        "<client> :Unknown MODE flag"
-
-        ERR_ALREADYREGISTERED (462)
-        "<client> :You may not reregister"
-    */
-
     _errorMsg.insert(std::make_pair(433, " :Nickname is already in use\n"));
     _errorMsg.insert(std::make_pair(443, " :is already on channel\n"));
     _errorMsg.insert(std::make_pair(451, " :You have not registered\n"));
@@ -235,7 +211,7 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
 }
 
-void Server::sendError(int client_fd, int error_code) // need to add channel name to error msg
+void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
 {
     std::string error;
     std::string fd_string;
@@ -249,7 +225,7 @@ void Server::sendError(int client_fd, int error_code) // need to add channel nam
     else if (error_code == 451)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 461)
-        error = fd_string + _errorMsg[error_code];
+        error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 464)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 501)
@@ -261,7 +237,18 @@ void Server::sendError(int client_fd, int error_code) // need to add channel nam
 }
 
 // Destructor -------------------------------------------------------------------------------------------
-Server::~Server() { std::cout << "Server is OFF !\n"; }
+Server::~Server() 
+{ 
+    // close all fd
+    std::map<int, Client>::iterator it = _clients.begin();
+    while (it != _clients.end())
+    {
+        close(it->first);
+        it++;
+    }
+    close(_sock_fd);
+    std::cout << "Server is OFF !\n";
+}
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port

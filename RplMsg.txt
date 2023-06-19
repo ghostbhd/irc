@@ -1,0 +1,2 @@
+RPL_WELCOME (001) 
+"<client> :Welcome to the <networkname> Network, <nick>[!<user>@<host>]"

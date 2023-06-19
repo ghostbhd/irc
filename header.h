@@ -17,29 +17,6 @@
 #include <sstream> // for stringstream
 
 
-/*
-        ERR_NICKNAMEINUSE (433)
-        "<client> <nick> :Nickname is already in use"
-
-        ERR_USERONCHANNEL (443)
-        "<client> <nick> <channel> :is already on channel"
-
-        ERR_NOTREGISTERED (451)
-        "<client> :You have not registered"
-
-        ERR_NEEDMOREPARAMS (461)
-        "<client> <command> :Not enough parameters"
-
-        ERR_PASSWDMISMATCH (464)
-        "<client> :Password incorrect"
-
-        ERR_UMODEUNKNOWNFLAG (501)
-        "<client> :Unknown MODE flag"
-
-        ERR_ALREADYREGISTERED (462) 
-        "<client> :You may not reregister"
-    */
-
 enum ERROR_CODE
 {
     ERR_NICKNAMEINUSE = 433,

@@ -11,6 +11,8 @@ private:
     std::string _pass;
     std::string _nickname;
     std::string _username;
+    bool _isOperator;
+    std::map<std::string, bool> _channels;
 
 public:
     Client() {}

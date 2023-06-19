@@ -38,7 +38,7 @@ public:
 
     // Errors --------------------------------------
     void initErrorMsg();
-    void sendError(int client_fd, int error_code);
+    void sendError(int client_fd, int error_code, std::string command);
 
     // Exceptions ----------------------------------
     class Error_Select : public std::exception
