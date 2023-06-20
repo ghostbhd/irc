@@ -18,6 +18,8 @@ private:
 
     std::map<int, std::string> _errorMsg;
 
+    std::string _adminPass = "admin";
+    
     Server();
 
 public:
