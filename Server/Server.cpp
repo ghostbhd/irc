@@ -254,12 +254,10 @@ Server::~Server()
     std::cout << "Server is OFF !\n";
 }
 
+// Commands ---------------------------------------------------------------------------------------------
+
+
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
 int Server::getSock_fd() const { return (this->_sock_fd); }   // _sock_fd
 std::string Server::getPass() const { return (this->_pass); } // _pass
-
-// Exceptions --------------------------------------------------------------------------------------------
-const char *Server::Error_Select::what() const throw() { return ("Error: Cannot SELECT socket!\n"); }
-
-const char *Server::Error_Accept::what() const throw() { return ("Error: Cannot Accept socket!\n"); }

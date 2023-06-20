@@ -40,15 +40,8 @@ public:
     void initErrorMsg();
     void sendError(int client_fd, int error_code, std::string command);
 
-    // Exceptions ----------------------------------
-    class Error_Select : public std::exception
-    {
-        virtual const char *what() const throw();
-    };
-    class Error_Accept : public std::exception
-    {
-        virtual const char *what() const throw();
-    };
+    // Commands ------------------------------------
+    void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
 };
 
 #endif
