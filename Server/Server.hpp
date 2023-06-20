@@ -42,6 +42,7 @@ public:
 
     // Commands ------------------------------------
     void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
+    void operCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

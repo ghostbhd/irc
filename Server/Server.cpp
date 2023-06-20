@@ -116,19 +116,25 @@ void Server::ClientRecv(int client_fd)
 
         close(client_fd);
     }
+
+    // Getting the line from the buffer and deleting the \n and \r
     std::string CleanLine = deleteNewLine(buffer.data());
     if (CleanLine.empty())
         return;
+
     size_t pos = CleanLine.find(":");
-    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] != ' ')
+    // check if the line is valid (starts with ":" or ":", followed by a space and not empty)
+    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] != ' ' || CleanLine[pos + 2] == '\0')
     {
         sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
         return;
     }
 
-    std::string cmd = CleanLine.substr(0, pos); // Parameter
+    // Parameter before ":" ex: NICK, USER, PASS, etc...
+    std::string cmd = CleanLine.substr(0, pos);
 
-    if (_clients[client_fd].getAuth() == false) // Pass
+    // Pass if passwd is correct then auth = true
+    if (_clients[client_fd].getAuth() == false)
     {
         if (cmd != "PASS")
             sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
@@ -141,7 +147,8 @@ void Server::ClientRecv(int client_fd)
                 _clients[client_fd].setAuth(true);
         }
     }
-    else // NICK & USER
+    // NICK & USER *********** and other commands if the NICK and USER are set
+    else
     {
         if (_clients[client_fd].getNickname().empty() || _clients[client_fd].getUsername().empty())
         {
@@ -174,17 +181,18 @@ void Server::ClientRecv(int client_fd)
             else
                 sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
             // if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
-                // sendWRpl(client_fd, flag, str);
+            // sendWRpl(client_fd, flag, str);
         }
         else
         {
-            // commands
+            // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
+            mainCommands(client_fd, &CleanLine[pos + 2], cmd);
         }
     }
 }
 
 // Utils ------------------------------------------------------------------------------------------------
-std::string Server::deleteNewLine(char* str)
+std::string Server::deleteNewLine(char *str)
 {
     std::string s(str);
 
@@ -241,8 +249,8 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
 }
 
 // Destructor -------------------------------------------------------------------------------------------
-Server::~Server() 
-{ 
+Server::~Server()
+{
     // close all fd
     std::map<int, Client>::iterator it = _clients.begin();
     while (it != _clients.end())
@@ -255,7 +263,16 @@ Server::~Server()
 }
 
 // Commands ---------------------------------------------------------------------------------------------
+void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
+{
+    if (cmd == "OPER" || cmd == "oper")
+        operCmd(client_fd, cleanLine);
+}
 
+void Server::operCmd(int client_fd, std::string cleanLine)
+{
+    
+}
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port

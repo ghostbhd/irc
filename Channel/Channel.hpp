@@ -12,7 +12,6 @@ private:
     std::string _key;
 public:
     Channel() {}
-    
 };
 
 #endif
