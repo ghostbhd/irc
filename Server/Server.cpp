@@ -108,33 +108,35 @@ void Server::newClient()
 void Server::ClientRecv(int client_fd)
 {
     std::vector<char> buffer(5000);
-    size_t rd = read(client_fd, buffer.data(), buffer.size());
-    if (!rd)
+    size_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
+    if (!ReadingFromC)
     {
         std::cout << "Client " << client_fd << " disconnected!\n";
+        _clients.erase(client_fd);
+
         close(client_fd);
     }
-    std::string str = deleteNewLine(buffer.data());
-    if (str.empty())
+    std::string CleanLine = deleteNewLine(buffer.data());
+    if (CleanLine.empty())
         return;
-    size_t pos = str.find(":");
-    if (pos == std::string::npos || pos == 0 || str[pos - 1] != ' ')
+    size_t pos = CleanLine.find(":");
+    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] != ' ')
     {
-        sendError(client_fd, ERR_NEEDMOREPARAMS, str);
+        sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
         return;
     }
 
-    std::string cmd = str.substr(0, pos); // Parameter
+    std::string cmd = CleanLine.substr(0, pos); // Parameter
 
     if (_clients[client_fd].getAuth() == false) // Pass
     {
         if (cmd != "PASS")
-            sendError(client_fd, ERR_NOTREGISTERED, str);
+            sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
         else
         {
-            std::string pass(str.substr(pos + 2));
+            std::string pass(CleanLine.substr(pos + 2));
             if (pass != _pass)
-                sendError(client_fd, ERR_PASSWDMISMATCH, str);
+                sendError(client_fd, ERR_PASSWDMISMATCH, CleanLine);
             else
                 _clients[client_fd].setAuth(true);
         }
@@ -145,32 +147,34 @@ void Server::ClientRecv(int client_fd)
         {
             if (cmd == "NICK" || cmd == "nick")
             {
-                std::string nick(str.substr(pos + 2));
+                std::string nick(CleanLine.substr(pos + 2));
                 if (nick.empty())
-                    sendError(client_fd, ERR_NEEDMOREPARAMS, str);
+                    sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                 else
                 {
                     if (_clients[client_fd].getNickname().empty())
                         _clients[client_fd].setNickname(nick);
                     else
-                        sendError(client_fd, ERR_NICKNAMEINUSE, str);
+                        sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
                 }
             }
             else if (cmd == "USER" || cmd == "user")
             {
-                std::string user(str.substr(pos + 2));
+                std::string user(CleanLine.substr(pos + 2));
                 if (user.empty())
-                    sendError(client_fd, ERR_NEEDMOREPARAMS, str);
+                    sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                 else
                 {
                     if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user);
                     else
-                        sendError(client_fd, ERR_ALREADYREGISTERED, str);
+                        sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
                 }
             }
             else
-                sendError(client_fd, ERR_NOTREGISTERED, str);
+                sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
+            // if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
+                // sendWRpl(client_fd, flag, str);
         }
         else
         {
