@@ -4,6 +4,8 @@
 #include "../header.h"
 #include "../Client/Client.hpp"
 
+#define WELCOMINGCODE 001
+
 class Server
 {
 private:
@@ -36,13 +38,16 @@ public:
     // Utils ---------------------------------------
     std::string deleteNewLine(char *str);
 
+    // RPLY ----------------------------------------
+    void sendWelcomeRpl(int client_fd, int code);
+
     // Errors --------------------------------------
     void initErrorMsg();
     void sendError(int client_fd, int error_code, std::string command);
 
     // Commands ------------------------------------
-    void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
-    void operCmd(int client_fd, std::string cleanLine);
+    //void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
+    //void operCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

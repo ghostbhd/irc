@@ -16,7 +16,7 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
-    // memset(&_sockaddr, 0, sizeof(_sockaddr));
+    memset(&_sockaddr, 0, sizeof(_sockaddr)); //setting the memory to 0;
 
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
     _sockaddr.sin_family = AF_INET;
@@ -29,12 +29,11 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
     int opt = 1;
-    setsockopt(_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    // if (setsockopt(_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-    // {
-    //     std::cerr << "Cannot reuse the address\n";
-    //     exit(EXIT_FAILURE);
-    // }
+    if (setsockopt(_sock_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+    {
+        std::cerr << "Cannot reuse the address\n";
+        exit(EXIT_FAILURE);
+    }
     int binding = bind(this->_sock_fd, (struct sockaddr *)&_sockaddr, sizeof(_sockaddr));
     if (binding < 0) // struct used to specify the @ assigned to the sock
     {
@@ -136,7 +135,7 @@ void Server::ClientRecv(int client_fd)
     // Pass if passwd is correct then auth = true
     if (_clients[client_fd].getAuth() == false)
     {
-        if (cmd != "PASS")
+        if (cmd != "PASS" && cmd != "pass")
             sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
         else
         {
@@ -180,13 +179,13 @@ void Server::ClientRecv(int client_fd)
             }
             else
                 sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
-            // if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
-            // sendWRpl(client_fd, flag, str);
+            if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
+                sendWelcomeRpl(client_fd, WELCOMINGCODE);
         }
         else
         {
             // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
-            mainCommands(client_fd, &CleanLine[pos + 2], cmd);
+            //mainCommands(client_fd, &CleanLine[pos + 2], cmd);
         }
     }
 }
@@ -209,6 +208,20 @@ std::string Server::deleteNewLine(char *str)
     }
 
     return s;
+}
+
+// Send Replay ------------------------------------------------------------------------------------------
+void Server::sendWelcomeRpl(int client_fd, int code)
+{
+    std::stringstream cl_fd;
+    std::string fd_str;
+    cl_fd << client_fd;
+    cl_fd >> fd_str;
+    std::string message;
+
+    message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
+    if (code == 001)
+        send(client_fd, message.c_str(), message.size(), 0);
 }
 
 // Error handling ---------------------------------------------------------------------------------------
@@ -263,16 +276,16 @@ Server::~Server()
 }
 
 // Commands ---------------------------------------------------------------------------------------------
-void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
-{
-    if (cmd == "OPER" || cmd == "oper")
-        operCmd(client_fd, cleanLine);
-}
+// void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
+// {
+//     if (cmd == "OPER" || cmd == "oper")
+//         operCmd(client_fd, cleanLine);
+// }
 
-void Server::operCmd(int client_fd, std::string cleanLine)
-{
+// void Server::operCmd(int client_fd, std::string cleanLine)
+// {
     
-}
+// }
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port

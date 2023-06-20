@@ -11,6 +11,7 @@ private:
     std::string _pass;
     std::string _nickname;
     std::string _username;
+    std::string _hostname;
     bool _isOperator;
     std::map<std::string, bool> _channels;
 
@@ -29,6 +30,7 @@ public:
     int getFd() const { return _fd; }
     std::string getNickname() const { return _nickname; }
     std::string getUsername() const { return _username; }
+    std::string getHostname() const { return _hostname; }
 };
 
 #endif

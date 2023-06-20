@@ -1,2 +1,13 @@
 RPL_WELCOME (001) 
-"<client> :Welcome to the <networkname> Network, <nick>[!<user>@<host>]"
+"<client> :Welcome to the <networkname> Network, <nick>[!<user>@<host>]" //DONE 
+
+
+RPL_TOPIC (332) 
+  "<client> <channel> :<topic>"
+Sent to a client when joining the <channel> to inform them of the current topic of the channel.
+
+
+
+RPL_INVITING (341) 
+  "<client> <nick> <channel>"
+Sent as a reply to the INVITE command to indicate that the attempt was successful and the client with the nickname <nick> has been invited to <channel>.
