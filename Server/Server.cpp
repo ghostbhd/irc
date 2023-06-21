@@ -16,6 +16,9 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
 
+    _adminName = "admin";
+    _adminPass = "admin";
+
     memset(&_sockaddr, 0, sizeof(_sockaddr)); //setting the memory to 0;
 
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
@@ -187,7 +190,7 @@ void Server::ClientRecv(int client_fd)
         else
         {
             // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
-            mainCommands(client_fd, &CleanLine[pos + 2], cmd);
+            mainCommands(client_fd, &CleanLine[pos + 1], cmd);
         }
     }
 }
@@ -258,11 +261,13 @@ void Server::sendWelcomeRpl(int client_fd, int code)
     std::string fd_str;
     cl_fd << client_fd;
     cl_fd >> fd_str;
-    std::string message;
+    std::string message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
+    std::string msg = fd_str + " :You are now an IRC operator\n";
 
-    message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
     if (code == 001)
         send(client_fd, message.c_str(), message.size(), 0);
+    else if (code == 381)
+        send(client_fd, msg.c_str(), msg.size(), 0);
 }
 
 // Error handling ---------------------------------------------------------------------------------------
@@ -275,6 +280,8 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(464, " :Password incorrect\n"));
     _errorMsg.insert(std::make_pair(501, " :Unknown MODE flag\n"));
     _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
+    _errorMsg.insert(std::make_pair(401, " :No such nick/channel\n"));
+    _errorMsg.insert(std::make_pair(401, " :Too many targets\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -298,6 +305,10 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 462)
         error = fd_string + _errorMsg[error_code];
+    else if (error_code == 401)
+        error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+    else if (error_code == 407)
+        error = fd_string + " " + _errorMsg[error_code];
 
     send(client_fd, error.c_str(), error.size(), 0);
 }
@@ -319,8 +330,10 @@ Server::~Server()
 // Commands ---------------------------------------------------------------------------------------------
 void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
 {
-    if (cmd == "OPER" || cmd == "oper")
+    if (cmd == "OPER")
         operCmd(client_fd, cleanLine);
+    else if (cmd == "PRIVMSG")
+        privmsg(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -335,10 +348,34 @@ void Server::operCmd(int client_fd, std::string cleanLine)
         if (oper[0] == _adminName && oper[1] == _adminPass)
         {
             _clients[client_fd].setOperator(true);
-            // send oper reply
+            // send oper RPL
+            sendWelcomeRpl(client_fd, RPL_AWAY);
         }
         else
             sendError(client_fd, ERR_PASSWDMISMATCH, cleanLine);
+    }
+}
+
+void Server::privmsg(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> msg = splitWithSpaces(cleanLine);
+    if (msg.size() < 2)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        int fd = findClientFdByNick(msg[0]);
+        if (fd == -1)
+            sendError(client_fd, ERR_NOSUCHNICK, cleanLine); // error nick not found
+        else
+        {
+            if (msg[1][0] != ':')
+                sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+            else
+            {
+                std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG " +  _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":")) + "\n";
+                send(fd, msg.c_str(), msg.size(), 0);
+            }
+        }
     }
 }
 

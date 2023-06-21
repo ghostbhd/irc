@@ -26,4 +26,40 @@ ERR_ALREADYREGISTERED (462)
 "<client> :You may not reregister"
 
 
+/////////////////////////////////
+
+ERR_NOSUCHNICK (401) 
+  "<client> <nickname> :No such nick/channel"
+Indicates that no client can be found for the supplied nickname. The text used in the last param of this message may vary.
+
+
+ERR_NOSUCHCHANNEL (403) 
+  "<client> <channel> :No such channel"
+Indicates that no channel can be found for the supplied channel name. The text used in the last param of this message may vary.
+
+
+
+ERR_CANNOTSENDTOCHAN (404) 
+  "<client> <channel> :Cannot send to channel"
+Indicates that the PRIVMSG / NOTICE could not be delivered to <channel>. The text used in the last param of this message may vary.
+
+This is generally sent in response to channel modes, such as a channel being moderated and the client not having permission to speak on the channel, or not being joined to a channel with the no external messages mode set.
+
+
+ERR_TOOMANYCHANNELS (405) 
+  "<client> <channel> :You have joined too many channels"
+Indicates that the JOIN command failed because the client has joined their maximum number of channels. The text used in the last param of this message may vary.
+
+
+ERR_TOOMANYTARGETS (407)
+
+
+ERR_NORECIPIENT (411) 
+  "<client> :No recipient given (<command>)"
+Returned by the PRIVMSG command to indicate the message wasn’t delivered because there was no recipient given.
+
+
+ERR_NOTEXTTOSEND (412) 
+  "<client> :No text to send"
+Returned by the PRIVMSG command to indicate the message wasn’t delivered because there was no text to send.
 

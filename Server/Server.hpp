@@ -5,6 +5,7 @@
 #include "../Client/Client.hpp"
 
 #define WELCOMINGCODE 001
+#define RPL_AWAY 381
 
 class Server
 {
@@ -18,8 +19,8 @@ private:
 
     std::map<int, std::string> _errorMsg;
 
-    std::string _adminName = "admin";
-    std::string _adminPass = "admin";
+    std::string _adminName;
+    std::string _adminPass;
 
     Server();
 
@@ -54,6 +55,7 @@ public:
     // Commands ------------------------------------
     void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
     void operCmd(int client_fd, std::string cleanLine);
+    void privmsg(int client_fd, std::string cleanLine);
 };
 
 #endif
