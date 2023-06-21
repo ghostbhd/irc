@@ -18,8 +18,9 @@ private:
 
     std::map<int, std::string> _errorMsg;
 
+    std::string _adminName = "admin";
     std::string _adminPass = "admin";
-    
+
     Server();
 
 public:
@@ -39,6 +40,9 @@ public:
 
     // Utils ---------------------------------------
     std::string deleteNewLine(char *str);
+    std::vector<std::string> splitWithSpaces(std::string str);
+    int findClientFdByNick(std::string nick);
+    int findClientFdByUser(std::string user);
 
     // RPLY ----------------------------------------
     void sendWelcomeRpl(int client_fd, int code);
@@ -48,8 +52,8 @@ public:
     void sendError(int client_fd, int error_code, std::string command);
 
     // Commands ------------------------------------
-    //void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
-    //void operCmd(int client_fd, std::string cleanLine);
+    void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
+    void operCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

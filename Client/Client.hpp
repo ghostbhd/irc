@@ -24,6 +24,7 @@ public:
     void setAuth(bool auth) { this->_auth = auth; }
     void setNickname(std::string nickname) { this->_nickname = nickname; }
     void setUsername(std::string username) { this->_username = username; }
+    void setOperator(bool isOperator) { this->_isOperator = isOperator; }
 
     // getters ----------------
     bool getAuth() const { return _auth; }
@@ -31,6 +32,7 @@ public:
     std::string getNickname() const { return _nickname; }
     std::string getUsername() const { return _username; }
     std::string getHostname() const { return _hostname; }
+    bool getOperator() const { return _isOperator; }
 };
 
 #endif

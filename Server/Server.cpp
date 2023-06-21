@@ -121,9 +121,10 @@ void Server::ClientRecv(int client_fd)
     if (CleanLine.empty())
         return;
 
-    size_t pos = CleanLine.find(":");
-    // check if the line is valid (starts with ":" or ":", followed by a space and not empty)
-    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] != ' ' || CleanLine[pos + 2] == '\0')
+    // Getting the position of the first space
+    size_t pos = CleanLine.find(" ");
+    // check if the line is valid
+    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] == '\0')
     {
         sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
         return;
@@ -139,7 +140,7 @@ void Server::ClientRecv(int client_fd)
             sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
         else
         {
-            std::string pass(CleanLine.substr(pos + 2));
+            std::string pass(CleanLine.substr(pos + 1));
             if (pass != _pass)
                 sendError(client_fd, ERR_PASSWDMISMATCH, CleanLine);
             else
@@ -153,26 +154,27 @@ void Server::ClientRecv(int client_fd)
         {
             if (cmd == "NICK" || cmd == "nick")
             {
-                std::string nick(CleanLine.substr(pos + 2));
-                if (nick.empty())
+                std::vector<std::string> nick = splitWithSpaces(CleanLine.substr(pos + 1));
+                if (nick.size() != 1)
                     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                 else
                 {
                     if (_clients[client_fd].getNickname().empty())
-                        _clients[client_fd].setNickname(nick);
+                        _clients[client_fd].setNickname(nick[0]);
                     else
                         sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
                 }
             }
             else if (cmd == "USER" || cmd == "user")
             {
-                std::string user(CleanLine.substr(pos + 2));
-                if (user.empty())
+                std::vector<std::string> user = splitWithSpaces(CleanLine.substr(pos + 1));
+
+                if (user.size() != 1)
                     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                 else
                 {
                     if (_clients[client_fd].getUsername().empty())
-                        _clients[client_fd].setUsername(user);
+                        _clients[client_fd].setUsername(user[0]);
                     else
                         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
                 }
@@ -185,7 +187,7 @@ void Server::ClientRecv(int client_fd)
         else
         {
             // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
-            //mainCommands(client_fd, &CleanLine[pos + 2], cmd);
+            mainCommands(client_fd, &CleanLine[pos + 2], cmd);
         }
     }
 }
@@ -208,6 +210,45 @@ std::string Server::deleteNewLine(char *str)
     }
 
     return s;
+}
+
+std::vector<std::string> Server::splitWithSpaces(std::string str)
+{
+    std::vector<std::string> result;
+    std::string tmp;
+
+    for (size_t i = 0; i < str.size(); i++)
+    {
+        if (str[i] == ' ')
+        {
+            result.push_back(tmp);
+            tmp.clear();
+        }
+        else
+            tmp += str[i];
+    }
+    result.push_back(tmp);
+    return result;
+}
+
+int Server::findClientFdByNick(std::string nick)
+{
+    for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); it++)
+    {
+        if (it->second.getNickname() == nick)
+            return it->first;
+    }
+    return -1;
+}
+
+int Server::findClientFdByUser(std::string user)
+{
+    for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); it++)
+    {
+        if (it->second.getUsername() == user)
+            return it->first;
+    }
+    return -1;
 }
 
 // Send Replay ------------------------------------------------------------------------------------------
@@ -276,16 +317,30 @@ Server::~Server()
 }
 
 // Commands ---------------------------------------------------------------------------------------------
-// void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
-// {
-//     if (cmd == "OPER" || cmd == "oper")
-//         operCmd(client_fd, cleanLine);
-// }
+void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
+{
+    if (cmd == "OPER" || cmd == "oper")
+        operCmd(client_fd, cleanLine);
+    else
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+}
 
-// void Server::operCmd(int client_fd, std::string cleanLine)
-// {
-    
-// }
+void Server::operCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> oper = splitWithSpaces(cleanLine);
+    if (oper.size() != 2)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        if (oper[0] == _adminName && oper[1] == _adminPass)
+        {
+            _clients[client_fd].setOperator(true);
+            // send oper reply
+        }
+        else
+            sendError(client_fd, ERR_PASSWDMISMATCH, cleanLine);
+    }
+}
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
