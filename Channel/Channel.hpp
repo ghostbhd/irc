@@ -12,6 +12,7 @@ private:
     std::string _key;
 public:
     Channel() {}
+    bool clientExist(int client_fd);
 };
 
 #endif

@@ -234,6 +234,7 @@ std::vector<std::string> Server::splitWithSpaces(std::string str)
     return result;
 }
 
+// Client ****************************************
 int Server::findClientFdByNick(std::string nick)
 {
     for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); it++)
@@ -252,6 +253,17 @@ int Server::findClientFdByUser(std::string user)
             return it->first;
     }
     return -1;
+}
+
+// Channel ***************************************
+std::string Server::findChannelByFd(int fd)
+{
+    for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); it++)
+    {
+        if (it->second.clientExist(fd))
+            return it->first;
+    }
+    return "";
 }
 
 // Send Replay ------------------------------------------------------------------------------------------
