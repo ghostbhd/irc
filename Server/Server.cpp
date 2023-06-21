@@ -19,7 +19,7 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
     _adminName = "admin";
     _adminPass = "admin";
 
-    memset(&_sockaddr, 0, sizeof(_sockaddr)); //setting the memory to 0;
+    memset(&_sockaddr, 0, sizeof(_sockaddr)); // setting the memory to 0;
 
     this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
     _sockaddr.sin_family = AF_INET;
@@ -294,6 +294,8 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
     _errorMsg.insert(std::make_pair(401, " :No such nick/channel\n"));
     _errorMsg.insert(std::make_pair(401, " :Too many targets\n"));
+    _errorMsg.insert(std::make_pair(403, " :No such channel\n"));
+    _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -321,6 +323,10 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
     else if (error_code == 407)
         error = fd_string + " " + _errorMsg[error_code];
+    else if (error_code == 403)
+        error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 475)
+        error = fd_string + " " + command + _errorMsg[error_code];
 
     send(client_fd, error.c_str(), error.size(), 0);
 }
@@ -346,10 +352,13 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         operCmd(client_fd, cleanLine);
     else if (cmd == "PRIVMSG")
         privmsg(client_fd, cleanLine);
+    else if (cmd == "JOIN")
+        joinCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
 
+// OPER >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::operCmd(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> oper = splitWithSpaces(cleanLine);
@@ -368,6 +377,7 @@ void Server::operCmd(int client_fd, std::string cleanLine)
     }
 }
 
+// PRIVMSG >>>>>>>>>>>>>>>>>>>>
 void Server::privmsg(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> msg = splitWithSpaces(cleanLine);
@@ -384,8 +394,61 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                 sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
             else
             {
-                std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG " +  _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":")) + "\n";
+                std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG " + _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":")) + "\n";
                 send(fd, msg.c_str(), msg.size(), 0);
+            }
+        }
+    }
+}
+
+// JOIN >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::joinCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> join = splitWithSpaces(cleanLine); // split line with spaces
+
+    if (join.size() < 1) // no channel name
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        if (join[0][0] != '#') // channel name must start with #
+            sendError(client_fd, ERR_NOSUCHCHANNEL, join[0]);
+        else
+        {
+            if (join[0] == "#") // no channel name
+                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
+            else
+            {
+                std::string key = "";
+                if (join.size() > 1)
+                    key = cleanLine.substr(cleanLine.find(join[1])); // get key
+                if (_channels.find(join[0]) == _channels.end()) // channel not found create it and add client
+                {
+                    Channel newChannel(join[0], key, client_fd);
+                    _channels.insert(std::make_pair(join[0], newChannel));
+                    std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
+                    send(client_fd, msg.c_str(), msg.size(), 0);
+                    std::cout << "New channel created : " << join[0]<< " by " << _clients[client_fd].getNickname() << std::endl;
+                }
+                else // channel found add client to it
+                {
+                    if (_channels[join[0]].getKey().empty()) // no key
+                    {
+                        _channels[join[0]].addClient(client_fd);
+                        std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
+                        send(client_fd, msg.c_str(), msg.size(), 0);
+                    }
+                    else // key needed
+                    {
+                        if (_channels[join[0]].getKey() == key) // key match add client
+                        {
+                            _channels[join[0]].addClient(client_fd);
+                            std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
+                            send(client_fd, msg.c_str(), msg.size(), 0);
+                        }
+                        else
+                            sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
+                    }
+                }
             }
         }
     }

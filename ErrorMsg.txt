@@ -25,6 +25,9 @@ ERR_UMODEUNKNOWNFLAG (501)
 ERR_ALREADYREGISTERED (462) 
 "<client> :You may not reregister"
 
+ERR_BADCHANNELKEY (475) 
+  "<client> <channel> :Cannot join channel (+k)"
+
 
 /////////////////////////////////
 
