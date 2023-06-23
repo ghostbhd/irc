@@ -17,9 +17,10 @@ private:
     int _sock_fd;
     sockaddr_in _sockaddr;
     std::vector<pollfd> _poll_vc;
+
     std::map<int, Client> _clients;
+
     std::map<std::string, Channel> _channels;
-    std::vector<int> _invited_clients;
 
     std::map<int, std::string> _errorMsg;
 
@@ -46,7 +47,7 @@ public:
     // Utils ---------------------------------------------------------------------
     std::string deleteNewLine(char *str);
     std::vector<std::string> splitWithSpaces(std::string str);
-    void channelExist(std::string name);
+    bool isChannelExist(std::string name);
 
     // Client ********************************
     int findClientFdByNick(std::string nick);
@@ -54,6 +55,7 @@ public:
 
     // Channel *******************************
     std::string findChannelByFd(int fd);
+    bool isChanNameValid(std::string name);
 
     // RPLY ---------------------------------------------------------------------
     void sendWelcomeRpl(int client_fd, int code);

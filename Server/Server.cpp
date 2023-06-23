@@ -234,6 +234,15 @@ std::vector<std::string> Server::splitWithSpaces(std::string str)
     return result;
 }
 
+bool Server::isChannelExist(std::string name)
+{
+    for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); it++)
+    {
+        if (it->first == name)
+            return true;
+    }
+    return false;
+}
 // Client ****************************************
 int Server::findClientFdByNick(std::string nick)
 {
@@ -260,12 +269,18 @@ std::string Server::findChannelByFd(int fd)
 {
     for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); it++)
     {
-        if (it->second.clientExist(fd))
+        if (it->second.isChanMember(_clients[fd].getNickname()))
             return it->first;
     }
     return "";
 }
 
+bool Server::isChanNameValid(std::string name)
+{
+    if (name[0] != '#' || name == "#")
+        return false;
+    return true;
+}
 // Send Replay ------------------------------------------------------------------------------------------
 void Server::sendWelcomeRpl(int client_fd, int code)
 {
@@ -297,6 +312,9 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(401, " :Too many targets\n"));
     _errorMsg.insert(std::make_pair(403, " :No such channel\n"));
     _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\n"));
+    _errorMsg.insert(std::make_pair(405, " :You are already registred\n"));
+    _errorMsg.insert(std::make_pair(482, " :You're not channel operator\n"));
+    _errorMsg.insert(std::make_pair(442, " :You're not on that channel\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -308,8 +326,8 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     ss >> fd_string;
     if (error_code == 433)
         error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
-    // else if (error_code == 443)
-    //     error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+    else if (error_code == 443)
+        error = fd_string + " " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code];
     else if (error_code == 451)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 461)
@@ -327,6 +345,12 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     else if (error_code == 403)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 475)
+        error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 405)
+        error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 482)
+        error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 442)
         error = fd_string + " " + command + _errorMsg[error_code];
 
     send(client_fd, error.c_str(), error.size(), 0);
@@ -357,6 +381,10 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         joinCmd(client_fd, cleanLine);
     else if (cmd == "INVITE")
         inviteCmd(client_fd, cleanLine);
+    // else if (cmd == "KICK")
+    //     KickCmd(client_fd, cleanLine);
+    else if (cmd == "TOPIC")
+        topicCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -409,48 +437,50 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> join = splitWithSpaces(cleanLine); // split line with spaces
 
-    if (join.size() < 1) // no channel name
+    std::string nick = _clients[client_fd].getNickname(); // get client nickname
+    if (join.size() < 1)                                  // no channel name
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
     {
-        if (join[0][0] != '#') // channel name must start with #
+        if (!isChanNameValid(join[0])) // channel name must be valid
             sendError(client_fd, ERR_NOSUCHCHANNEL, join[0]);
         else
         {
-            if (join[0] == "#") // no channel name
-                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
-            else
+            std::string key = "";
+            if (join.size() > 1)
+                key = cleanLine.substr(cleanLine.find(join[1])); // get key
+            if (!isChannelExist(join[0]))                        // channel not found create it and add client
             {
-                std::string key = "";
-                if (join.size() > 1)
-                    key = cleanLine.substr(cleanLine.find(join[1])); // get key
-                if (_channels.find(join[0]) == _channels.end()) // channel not found create it and add client
+                Channel newChannel(join[0], key, nick);                // create new channel (key, name, chanOps)
+                _channels.insert(std::make_pair(join[0], newChannel)); // add channel to map
+                _channels[join[0]].addClient(nick);                    // add chanops to channel as client
+                std::string msg = ":" + nick + " JOIN " + join[0] + "\n";
+                send(client_fd, msg.c_str(), msg.size(), 0);
+                std::cout << "New channel created : " << join[0] << " by " << nick << std::endl;
+            }
+            else // channel found add client to it
+            {
+                if (_channels[join[0]].getKey().empty()) // no key
                 {
-                    Channel newChannel(join[0], key, client_fd);
-                    _channels.insert(std::make_pair(join[0], newChannel));
-                    std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
-                    send(client_fd, msg.c_str(), msg.size(), 0);
-                    std::cout << "New channel created : " << join[0]<< " by " << _clients[client_fd].getNickname() << std::endl;
-                }
-                else // channel found add client to it
-                {
-                    if (_channels[join[0]].getKey().empty()) // no key
+                    if (_channels[join[0]].isChanMember(nick)) // client already in channel
+                        sendError(client_fd, ERR_TOOMANYCHANNELS, join[0]);
+                    else // add client to channel (no key)
                     {
-                        _channels[join[0]].addClient(client_fd);
-                        std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
+                        _channels[join[0]].addClient(nick);
+                        std::string msg = ":" + nick + " JOIN " + join[0] + "\n";
                         send(client_fd, msg.c_str(), msg.size(), 0);
                     }
-                    else // key needed
+                }
+                else // key needed
+                {
+                    if (_channels[join[0]].getKey() == key) // key match add client
                     {
-                        if (_channels[join[0]].getKey() == key) // key match add client
-                        {
-                            _channels[join[0]].addClient(client_fd);
-                            std::string msg = ":" + _clients[client_fd].getNickname() + " JOIN " + join[0] + "\n";
-                            send(client_fd, msg.c_str(), msg.size(), 0);
-                        }
-                        else
-                            sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
+                        _channels[join[0]].addClient(nick);
+                        std::string msg = ":" + nick + " JOIN " + join[0] + "\n";
+                        send(client_fd, msg.c_str(), msg.size(), 0);
                     }
+                    else
+                        sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
                 }
             }
         }
@@ -458,67 +488,168 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
 }
 
 // INVITE >>>>>>>>>>>>>>>>>>>>>>>>
-// void Server::channelExist(std::string name)
-// {
-//     for (int i = 0; i < _channels.size(); i++)
-//     {
-//         if (_channels[i]->getChannelname() == name) //I need to acces to the getter of chanel name
-//             return _channels[i];
-//     }
-//     return NULL;
-// }
-
 void Server::inviteCmd(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> inv = splitWithSpaces(cleanLine);
 
-    if (inv.size() < 2) //CMD + NICK + CHANNEL
+    std::string nick = _clients[client_fd].getNickname(); // get client nickname
+
+    if (inv.size() < 2) // CMD + NICK + CHANNEL
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
     {
-        if (inv[1][0] != '#')
+        if (!isChanNameValid(inv[1])) // channel name must be valid
             sendError(client_fd, ERR_NOSUCHCHANNEL, inv[1]);
         else
         {
-            if (inv[1] == "#")
-                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
+            if (!isChannelExist(inv[1])) // channel not found
+                sendError(client_fd, ERR_NOSUCHCHANNEL, inv[1]);
             else
             {
-                int find = findClientFdByNick(inv[0]);
-                if (!find) // + check if the nick exist + send a notice to this client
-                    sendError(client_fd, ERR_NOSUCHNICK, inv[0]);
-                _invited_clients.push_back(client_fd);
-                std::string msg = inv[0] + " was invited to " + inv[1] + "\n";
-                send(client_fd, msg.c_str(), msg.size(), 0);
-                std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] <<" to the channel " << inv[1] << "\n";
+                if (_channels[inv[1]].getInviteOnly() && !_channels[inv[1]].isChanOps(nick))
+                    sendError(client_fd, ERR_CHANOPRIVSNEEDED, inv[1]);
+                else
+                {
+                    int cInvited = findClientFdByNick(inv[0]);
+                    if (cInvited == -1) // check if the client exists in the server
+                        sendError(client_fd, ERR_NOSUCHNICK, inv[0]);
+                    else
+                    {
+                        std::string invitedNick = _clients[cInvited].getNickname();
+                        if (!_channels[inv[1]].isChanMember(nick)) // check if the inviter is in the channel
+                            sendError(client_fd, ERR_USERONCHANNEL, inv[1]);
+                        else
+                        {
+                            if (_channels[inv[1]].isChanMember(invitedNick)) // check if the invited client is already in the channel
+                                sendError(client_fd, ERR_USERONCHANNEL, inv[1]);
+                            else
+                            {
+                                std::cout << "i'm here\n";
+                                _channels[inv[1]].addClient(invitedNick);
+                                std::string msg = inv[0] + " was invited to " + inv[1] + "\n";
+                                send(cInvited, msg.c_str(), msg.size(), 0);
+                                std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-
 // KICK >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::KickCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string>split = splitWithSpaces(cleanLine);
+    std::vector<std::string> split = splitWithSpaces(cleanLine);
 
-    if (split.size() < 3)
-        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    if (isChanNameValid(split[0]))
+        sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
     else
-        _invited_clients.clear();
+    {
+        if (!isChannelExist(split[0]))
+            sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+        else
+        {
+            if (!_channels[split[0]].isChanMember(_clients[client_fd].getNickname())) // check if the client is in the channel
+                sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+            else
+            {
+                if (split.size() < 2) // check if the command has enough parameters
+                    sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+                else
+                {
+                    int targetFD = findClientFdByUser(split[1]);
+                    if (targetFD == -1)
+                        sendError(client_fd, ERR_NOSUCHNICK, split[1]);
+                    else
+                    {
+                        std::string nick = _clients[targetFD].getNickname();
+                        if (!_channels[split[1]].isChanMember(nick))          // check if the target is in the channel
+                            sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+                        else
+                        {
+                            _channels[split[0]].removeClient(nick); // remove the target from the channel
+                            if (split.size() == 2)                 // check if the command has a message
+                            {
+                                std::string msg = ":" + _clients[client_fd].getNickname() + " KICK " + split[0] + " " + nick + "\n";
+                                send(client_fd, msg.c_str(), msg.size(), 0);
+                                msg = ":" + _clients[targetFD].getNickname() + " you got kicked from " + split[0] + "\n";
+                                send(targetFD, msg.c_str(), msg.size(), 0);
+                            }
+                            else // send the message to the target
+                            {
+                                if (split[1][0] != ':') // check if the message is valid
+                                    sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+                                else
+                                {
+                                    if (split[1][1] == '\0') // check if the message is empty
+                                    {
+                                        std::string msg = ":" + _clients[client_fd].getNickname() + " KICK " + split[0] + " " + nick + "\n";
+                                        send(client_fd, msg.c_str(), msg.size(), 0);
+                                    }
+                                    else // send the message to the target
+                                    {
+                                        std::string msg = ": YOU Eject " + nick + " from " + split[0] + "\n";
+                                        send(client_fd, msg.c_str(), msg.size(), 0);
+                                        msg = ":" + _clients[targetFD].getNickname() + " you got kicked from " + split[0] + " " \
+                                        + cleanLine.substr(cleanLine.find(":", split[0].size()) + 1) + "\n"; // get the message after the :
+                                        send(targetFD, msg.c_str(), msg.size(), 0);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // TOPIC >>>>>>>>>>>>>>>>>>>>>>>>
-
 void Server::topicCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string>split = splitWithSpaces(cleanLine);
+    std::vector<std::string> split = splitWithSpaces(cleanLine);
 
-    if (split.size() > 3 || split.size() < 2)
+    if (split.size() < 1)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
-    //need to check on channel if it exists Prob found => cannot access to getter of channel + channels are stocked in server
+    else
+    {
+        std::string nick = _clients[client_fd].getNickname();
+        if (!isChanNameValid(split[0]))
+            sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+        else
+        {
+            if (!isChannelExist(split[0]))
+                sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+            else
+            {
+                if (!_channels[split[0]].isChanMember(nick))
+                    sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+                else
+                {
+                    if (split.size() == 1)
+                    {
+                        std::string msg = ":" + nick + " TOPIC " + split[0] + " :" + _channels[split[0]].getTopic() + "\n";
+                        send(client_fd, msg.c_str(), msg.size(), 0);
+                    }
+                    else
+                    {
+                        if (split[1][0] != ':')
+                            sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+                        else
+                        {
+                            if (split[1][1] == '\0')
+                                _channels[split[0]].setTopic("");
+                            else
+                                _channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
-
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port

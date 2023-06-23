@@ -28,6 +28,12 @@ ERR_ALREADYREGISTERED (462)
 ERR_BADCHANNELKEY (475) 
   "<client> <channel> :Cannot join channel (+k)"
 
+ERR_CHANOPRIVSNEEDED (482) 
+  "<client> <channel> :You're not channel operator"
+
+ERR_NOTONCHANNEL (442) 
+  "<client> <channel> :You're not on that channel"
+
 
 /////////////////////////////////
 
