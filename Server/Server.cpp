@@ -273,6 +273,7 @@ void Server::sendWelcomeRpl(int client_fd, int code)
     std::string fd_str;
     cl_fd << client_fd;
     cl_fd >> fd_str;
+
     std::string message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
     std::string msg = fd_str + " :You are now an IRC operator\n";
 
@@ -354,6 +355,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         privmsg(client_fd, cleanLine);
     else if (cmd == "JOIN")
         joinCmd(client_fd, cleanLine);
+    else if (cmd == "INVITE")
+        inviteCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -453,6 +456,69 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
         }
     }
 }
+
+// INVITE >>>>>>>>>>>>>>>>>>>>>>>>
+// void Server::channelExist(std::string name)
+// {
+//     for (int i = 0; i < _channels.size(); i++)
+//     {
+//         if (_channels[i]->getChannelname() == name) //I need to acces to the getter of chanel name
+//             return _channels[i];
+//     }
+//     return NULL;
+// }
+
+void Server::inviteCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> inv = splitWithSpaces(cleanLine);
+
+    if (inv.size() < 2) //CMD + NICK + CHANNEL
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        if (inv[1][0] != '#')
+            sendError(client_fd, ERR_NOSUCHCHANNEL, inv[1]);
+        else
+        {
+            if (inv[1] == "#")
+                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
+            else
+            {
+                int find = findClientFdByNick(inv[0]);
+                if (!find) // + check if the nick exist + send a notice to this client
+                    sendError(client_fd, ERR_NOSUCHNICK, inv[0]);
+                _invited_clients.push_back(client_fd);
+                std::string msg = inv[0] + " was invited to " + inv[1] + "\n";
+                send(client_fd, msg.c_str(), msg.size(), 0);
+                std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] <<" to the channel " << inv[1] << "\n";
+            }
+        }
+    }
+}
+
+
+// KICK >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::KickCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string>split = splitWithSpaces(cleanLine);
+
+    if (split.size() < 3)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+        _invited_clients.clear();
+}
+
+// TOPIC >>>>>>>>>>>>>>>>>>>>>>>>
+
+void Server::topicCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string>split = splitWithSpaces(cleanLine);
+
+    if (split.size() > 3 || split.size() < 2)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    //need to check on channel if it exists Prob found => cannot access to getter of channel + channels are stocked in server
+}
+
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port

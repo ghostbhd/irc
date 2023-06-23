@@ -20,3 +20,4 @@ void Channel::addClient(int client_fd)
 {
     _clients.push_back(client_fd);
 }
+

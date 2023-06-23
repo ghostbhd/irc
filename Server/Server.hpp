@@ -7,6 +7,7 @@
 
 #define WELCOMINGCODE 001
 #define RPL_AWAY 381
+#define RPL_INVITING 341
 
 class Server
 {
@@ -18,6 +19,7 @@ private:
     std::vector<pollfd> _poll_vc;
     std::map<int, Client> _clients;
     std::map<std::string, Channel> _channels;
+    std::vector<int> _invited_clients;
 
     std::map<int, std::string> _errorMsg;
 
@@ -44,6 +46,7 @@ public:
     // Utils ---------------------------------------------------------------------
     std::string deleteNewLine(char *str);
     std::vector<std::string> splitWithSpaces(std::string str);
+    void channelExist(std::string name);
 
     // Client ********************************
     int findClientFdByNick(std::string nick);
@@ -64,6 +67,9 @@ public:
     void operCmd(int client_fd, std::string cleanLine);
     void privmsg(int client_fd, std::string cleanLine);
     void joinCmd(int client_fd, std::string cleanLine);
+    void inviteCmd(int client_fd, std::string cleanLine);
+    void KickCmd(int client_fd, std::string cleanLine);
+    void topicCmd(int client_fd, std::string cleanLine);
 };
 
 #endif
