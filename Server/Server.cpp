@@ -122,11 +122,11 @@ void Server::ClientRecv(int client_fd)
 
     // Getting the line from the buffer and deleting the \n and \r
     std::string CleanLine = deleteNewLine(buffer.data());
+    std::vector<std::string> split = splitWithChar(CleanLine, '\n');
     if (CleanLine.empty())
         return;
-
-    // Getting the position of the first space
-    size_t pos = CleanLine.find(" ");
+    
+    size_t pos = CleanLine.find(" ");// Getting the position of the first space
     // check if the line is valid
     if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] == '\0')
     {
@@ -134,7 +134,7 @@ void Server::ClientRecv(int client_fd)
         return;
     }
 
-    // Parameter before ":" ex: NICK, USER, PASS, etc...
+    // Parameter before " " ex: NICK, USER, PASS, etc...
     std::string cmd = CleanLine.substr(0, pos);
 
     // Pass if passwd is correct then auth = true
@@ -158,7 +158,7 @@ void Server::ClientRecv(int client_fd)
         {
             if (cmd == "NICK" || cmd == "nick")
             {
-                std::vector<std::string> nick = splitWithSpaces(CleanLine.substr(pos + 1));
+                std::vector<std::string> nick = splitWithChar(CleanLine.substr(pos + 1), ' ');
                 if (nick.size() != 1)
                     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                 else
@@ -171,22 +171,26 @@ void Server::ClientRecv(int client_fd)
             }
             else if (cmd == "USER" || cmd == "user")
             {
-                std::vector<std::string> user = splitWithSpaces(CleanLine.substr(pos + 1));
+                std::vector<std::string> user = splitWithChar(CleanLine.substr(pos + 1), ' ');
 
-                if (user.size() != 1)
-                    sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
-                else
-                {
+                // if (user.size() != 1)
+                //     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
+                // else
+                // {
                     if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user[0]);
-                    else
-                        sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
-                }
+                //     else
+                //         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
+                // }
             }
             else
                 sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
             if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
-                sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
+            {
+                send(client_fd, "001", 3, 0);
+                std::cout << "Client " << client_fd << " is now registered\n";
+            }
+                // sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
         }
         else
         {
@@ -216,14 +220,14 @@ std::string Server::deleteNewLine(char *str)
     return s;
 }
 
-std::vector<std::string> Server::splitWithSpaces(std::string str)
+std::vector<std::string> Server::splitWithChar(std::string str, char c)
 {
     std::vector<std::string> result;
     std::string tmp;
 
     for (size_t i = 0; i < str.size(); i++)
     {
-        if (str[i] == ' ')
+        if (str[i] == c)
         {
             result.push_back(tmp);
             tmp.clear();
@@ -418,7 +422,7 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
 // OPER >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::operCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> oper = splitWithSpaces(cleanLine);
+    std::vector<std::string> oper = splitWithChar(cleanLine, ' ');
     if (oper.size() != 2)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
@@ -437,7 +441,7 @@ void Server::operCmd(int client_fd, std::string cleanLine)
 // PRIVMSG >>>>>>>>>>>>>>>>>>>>
 void Server::privmsg(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> msg = splitWithSpaces(cleanLine);
+    std::vector<std::string> msg = splitWithChar(cleanLine, ' ');
     if (msg.size() < 2)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
@@ -483,7 +487,7 @@ void Server::privmsg(int client_fd, std::string cleanLine)
 // JOIN >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::joinCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> join = splitWithSpaces(cleanLine); // split line with spaces
+    std::vector<std::string> join = splitWithChar(cleanLine, ' '); // split line with spaces
 
     std::string nick = _clients[client_fd].getNickname(); // get client nickname
     if (join.size() < 1)                                  // no channel name
@@ -538,7 +542,7 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
 // INVITE >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::inviteCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> inv = splitWithSpaces(cleanLine);
+    std::vector<std::string> inv = splitWithChar(cleanLine, ' ');
 
     std::string nick = _clients[client_fd].getNickname(); // get client nickname
 
@@ -589,7 +593,7 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
 // KICK >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::KickCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> split = splitWithSpaces(cleanLine);
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
 
     if (!isChanNameValid(split[0]))
     {
@@ -668,7 +672,7 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 // TOPIC >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::topicCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> split = splitWithSpaces(cleanLine);
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
 
     if (split.size() < 1)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
@@ -716,7 +720,7 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
 // MODE >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::modeCmd(int client_fd, std::string cleanLine)
 {
-    std::vector<std::string> split = splitWithSpaces(cleanLine);
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
 
     if (split.size() < 2)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine); // repl insted of error

@@ -47,7 +47,7 @@ public:
 
     // Utils ---------------------------------------------------------------------
     std::string deleteNewLine(char *str);
-    std::vector<std::string> splitWithSpaces(std::string str);
+    std::vector<std::string> splitWithChar(std::string str, char c);
     bool isChannelExist(std::string name);
 
     // Client ********************************
