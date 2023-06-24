@@ -111,7 +111,8 @@ void Server::ClientRecv(int client_fd)
 {
     std::vector<char> buffer(5000);
     ssize_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
-    std::cout << "Client " << client_fd << " sent :\n" << buffer.data() << std::endl;
+    std::cout << "Client " << client_fd << " sent :\n"
+              << buffer.data() << std::endl;
     if (!ReadingFromC)
     {
         std::cout << "Client " << client_fd << " disconnected!\n";
@@ -121,103 +122,98 @@ void Server::ClientRecv(int client_fd)
     }
 
     // Getting the line from the buffer and deleting the \n and \r
-    std::string CleanLine = deleteNewLine(buffer.data());
-    std::vector<std::string> split = splitWithChar(CleanLine, '\n');
-    if (CleanLine.empty())
-        return;
-    
-    size_t pos = CleanLine.find(" ");// Getting the position of the first space
-    // check if the line is valid
-    if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] == '\0')
+    std::vector<std::string> split = splitWithChar(buffer.data(), '\n');
+    for (std::vector<std::string>::iterator it = split.begin(); it != split.end(); it++)
     {
-        sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
-        return;
-    }
+        std::string CleanLine = deleteNewLine(*it);
+        if (CleanLine.empty())
+            return;
 
-    // Parameter before " " ex: NICK, USER, PASS, etc...
-    std::string cmd = CleanLine.substr(0, pos);
+        size_t pos = CleanLine.find(" "); // Getting the position of the first space
+        // check if the line is valid
+        if (pos == std::string::npos || pos == 0 || CleanLine[pos + 1] == '\0')
+        {
+            sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
+            return;
+        }
 
-    // Pass if passwd is correct then auth = true
-    if (_clients[client_fd].getAuth() == false)
-    {
-        if (cmd != "PASS" && cmd != "pass")
-            sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
+        // Parameter before " " ex: NICK, USER, PASS, etc...
+        std::string cmd = CleanLine.substr(0, pos);
+
+        // Pass if passwd is correct then auth = true
+        if (_clients[client_fd].getAuth() == false)
+        {
+            if (cmd != "PASS" && cmd != "pass")
+                sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
+            else
+            {
+                std::string pass(CleanLine.substr(pos + 1));
+                if (pass != _pass)
+                    sendError(client_fd, ERR_PASSWDMISMATCH, CleanLine);
+                else
+                    _clients[client_fd].setAuth(true);
+            }
+        }
+        // NICK & USER *********** and other commands if the NICK and USER are set
         else
         {
-            std::string pass(CleanLine.substr(pos + 1));
-            if (pass != _pass)
-                sendError(client_fd, ERR_PASSWDMISMATCH, CleanLine);
-            else
-                _clients[client_fd].setAuth(true);
-        }
-    }
-    // NICK & USER *********** and other commands if the NICK and USER are set
-    else
-    {
-        if (_clients[client_fd].getNickname().empty() || _clients[client_fd].getUsername().empty())
-        {
-            if (cmd == "NICK" || cmd == "nick")
+            if (_clients[client_fd].getNickname().empty() || _clients[client_fd].getUsername().empty())
             {
-                std::vector<std::string> nick = splitWithChar(CleanLine.substr(pos + 1), ' ');
-                if (nick.size() != 1)
-                    sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
-                else
+                if (cmd == "NICK" || cmd == "nick")
                 {
-                    if (_clients[client_fd].getNickname().empty())
-                        _clients[client_fd].setNickname(nick[0]);
+                    std::vector<std::string> nick = splitWithChar(CleanLine.substr(pos + 1), ' ');
+                    if (nick.size() != 1)
+                        sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                     else
-                        sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
+                    {
+                        if (_clients[client_fd].getNickname().empty())
+                            _clients[client_fd].setNickname(nick[0]);
+                        else
+                            sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
+                    }
                 }
-            }
-            else if (cmd == "USER" || cmd == "user")
-            {
-                std::vector<std::string> user = splitWithChar(CleanLine.substr(pos + 1), ' ');
+                else if (cmd == "USER" || cmd == "user")
+                {
+                    std::vector<std::string> user = splitWithChar(CleanLine.substr(pos + 1), ' ');
 
-                // if (user.size() != 1)
-                //     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
-                // else
-                // {
+                    // if (user.size() != 1)
+                    //     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
+                    // else
+                    // {
                     if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user[0]);
-                //     else
-                //         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
-                // }
+                    //     else
+                    //         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
+                    // }
+                }
+                else
+                    sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
+                if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
+                {
+                    send(client_fd, "001 :Welcome to the IRC Network\n", 33, 0);
+                    std::cout << "Client " << client_fd << " is now registered\n";
+                }
+                // sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
             }
             else
-                sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
-            if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
             {
-                send(client_fd, "001", 3, 0);
-                std::cout << "Client " << client_fd << " is now registered\n";
+                // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
+                mainCommands(client_fd, &CleanLine[pos + 1], cmd);
             }
-                // sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
-        }
-        else
-        {
-            // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
-            mainCommands(client_fd, &CleanLine[pos + 1], cmd);
         }
     }
 }
 
 // Utils ------------------------------------------------------------------------------------------------
-std::string Server::deleteNewLine(char *str)
+std::string Server::deleteNewLine(std::string str)
 {
-    std::string s(str);
-
-    std::string::size_type pos = 0;
-    while ((pos = s.find('\n', pos)) != std::string::npos)
+    for(size_t i = 0; i < str.size(); i++)
     {
-        s.erase(pos, 1);
+        if (str[i] == '\n' || str[i] == '\r')
+            str.erase(i, 1);
     }
 
-    pos = 0;
-    while ((pos = s.find('\r', pos)) != std::string::npos)
-    {
-        s.erase(pos, 1);
-    }
-
-    return s;
+    return str;
 }
 
 std::vector<std::string> Server::splitWithChar(std::string str, char c)
@@ -290,7 +286,7 @@ bool Server::isChanNameValid(std::string name)
 void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 {
     std::string nick = _clients[client_fd].getNickname();
-    std::string message = ":" + nick + " PRIVMSG " + chanName + " " + msg + "\n";
+    std::string message = ":" + nick + " PRIVMSG " + chanName + " :" + msg + "\n";
     std::vector<std::string> clients = _channels[chanName].getClients();
     for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
     {
@@ -474,9 +470,7 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                     sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
                 else
                 {
-                    std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG "\
-                    + _clients[client_fd].getNickname() + " "\
-                    + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    std::string msg = ":" + _clients[client_fd].getNickname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }

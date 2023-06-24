@@ -1,8 +1,11 @@
 #include "Server/Server.hpp"
 
+int g_fd;
+
 void sighandler(int signum)
 {
 	(void)signum;
+	close(g_fd);
 	std::cout << "Server terminated\n";
 	exit(EXIT_SUCCESS);
 }
@@ -20,6 +23,7 @@ int main(int ac, char **av)
 
 	signal(SIGINT, sighandler);
 	Server my_server(port, pass);
+	g_fd = my_server.getSock_fd();
 	my_server.start();
 
 	return (0);

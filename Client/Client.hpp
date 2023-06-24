@@ -14,6 +14,7 @@ private:
     std::string _hostname;
     bool _isOperator;
     std::map<std::string, bool> _channels;
+    bool _registered;
 
 public:
     Client() {}
@@ -25,6 +26,7 @@ public:
     void setNickname(std::string nickname) { this->_nickname = nickname; }
     void setUsername(std::string username) { this->_username = username; }
     void setOperator(bool isOperator) { this->_isOperator = isOperator; }
+    void setRegistered(bool registered) { this->_registered = registered; }
 
     // getters ----------------
     bool getAuth() const { return _auth; }
@@ -33,6 +35,7 @@ public:
     std::string getUsername() const { return _username; }
     std::string getHostname() const { return _hostname; }
     bool getOperator() const { return _isOperator; }
+    bool getRegistered() const { return _registered; }
 };
 
 #endif
