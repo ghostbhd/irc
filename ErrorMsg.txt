@@ -70,5 +70,12 @@ Returned by the PRIVMSG command to indicate the message wasn’t delivered becau
 
 ERR_NOTEXTTOSEND (412) 
   "<client> :No text to send"
-Returned by the PRIVMSG command to indicate the message wasn’t delivered because there was no text to send.
 
+ERR_UNKNOWNMODE (472) 
+  "<client> <modechar> :is unknown mode char to me"
+
+
+
+
+/////////NEED TO CHECK//////////////
+*Check on duplicate user/nick ..

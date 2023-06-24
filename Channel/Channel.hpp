@@ -12,7 +12,7 @@ private:
     std::string _key;
     std::vector<std::string> _chanOps;
     bool _inviteOnly;
-    bool _limit; // TODO: implement limit
+    //bool _limit; // TODO: implement limit
 
 public:
     Channel() {}

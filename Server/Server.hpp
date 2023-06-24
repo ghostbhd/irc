@@ -8,6 +8,7 @@
 #define WELCOMINGCODE 001
 #define RPL_AWAY 381
 #define RPL_INVITING 341
+#define RPL_TOPIC 332
 
 class Server
 {
@@ -58,7 +59,7 @@ public:
     bool isChanNameValid(std::string name);
 
     // RPLY ---------------------------------------------------------------------
-    void sendWelcomeRpl(int client_fd, int code);
+    void sendWelcomeRpl(int client_fd, std::string nick, int code, std::string param);
 
     // Errors -------------------------------------------------------------------
     void initErrorMsg();
@@ -72,6 +73,7 @@ public:
     void inviteCmd(int client_fd, std::string cleanLine);
     void KickCmd(int client_fd, std::string cleanLine);
     void topicCmd(int client_fd, std::string cleanLine);
+    //void modeCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

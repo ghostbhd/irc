@@ -185,7 +185,7 @@ void Server::ClientRecv(int client_fd)
             else
                 sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
             if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
-                sendWelcomeRpl(client_fd, WELCOMINGCODE);
+                sendWelcomeRpl(client_fd,"", WELCOMINGCODE,"");
         }
         else
         {
@@ -282,7 +282,7 @@ bool Server::isChanNameValid(std::string name)
     return true;
 }
 // Send Replay ------------------------------------------------------------------------------------------
-void Server::sendWelcomeRpl(int client_fd, int code)
+void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::string Channel)
 {
     std::stringstream cl_fd;
     std::string fd_str;
@@ -291,11 +291,17 @@ void Server::sendWelcomeRpl(int client_fd, int code)
 
     std::string message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
     std::string msg = fd_str + " :You are now an IRC operator\n";
+    std::string inv = fd_str + " has been invited " + nick + " to " + Channel +"\n";
+    std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\n";
 
     if (code == 001)
         send(client_fd, message.c_str(), message.size(), 0);
     else if (code == 381)
         send(client_fd, msg.c_str(), msg.size(), 0);
+    else if (code == 341)
+        send(client_fd, inv.c_str(), inv.size(), 0);
+    else if (code == 332)
+        send(client_fd, tpc.c_str(), tpc.size(), 0);
 }
 
 // Error handling ---------------------------------------------------------------------------------------
@@ -315,6 +321,7 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(405, " :You are already registred\n"));
     _errorMsg.insert(std::make_pair(482, " :You're not channel operator\n"));
     _errorMsg.insert(std::make_pair(442, " :You're not on that channel\n"));
+    _errorMsg.insert(std::make_pair(472, " :is unknown mode char to me\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -352,6 +359,8 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 442)
         error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 472)
+        error = fd_string + " " + command + _errorMsg[error_code];
 
     send(client_fd, error.c_str(), error.size(), 0);
 }
@@ -381,10 +390,12 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         joinCmd(client_fd, cleanLine);
     else if (cmd == "INVITE")
         inviteCmd(client_fd, cleanLine);
-    // else if (cmd == "KICK")
-    //     KickCmd(client_fd, cleanLine);
+    else if (cmd == "KICK")
+        KickCmd(client_fd, cleanLine);
     else if (cmd == "TOPIC")
         topicCmd(client_fd, cleanLine);
+    // else if (cmd == "MODE")
+    //     modeCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -401,7 +412,7 @@ void Server::operCmd(int client_fd, std::string cleanLine)
         {
             _clients[client_fd].setOperator(true);
             // send oper RPL
-            sendWelcomeRpl(client_fd, RPL_AWAY);
+            sendWelcomeRpl(client_fd, "",RPL_AWAY,"");
         }
         else
             sendError(client_fd, ERR_PASSWDMISMATCH, cleanLine);
@@ -524,9 +535,9 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
                                 sendError(client_fd, ERR_USERONCHANNEL, inv[1]);
                             else
                             {
-                                std::cout << "i'm here\n";
                                 _channels[inv[1]].addClient(invitedNick);
-                                std::string msg = inv[0] + " was invited to " + inv[1] + "\n";
+                                std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
+                                sendWelcomeRpl(client_fd, inv[0] ,RPL_INVITING, inv[1]);
                                 send(cInvited, msg.c_str(), msg.size(), 0);
                                 std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
                             }
@@ -543,12 +554,18 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> split = splitWithSpaces(cleanLine);
 
-    if (isChanNameValid(split[0]))
+    if (!isChanNameValid(split[0]))
+    {
+        std::cout << "TEST11111\n\n\n";
         sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+    }
     else
     {
         if (!isChannelExist(split[0]))
+        {
+            std::cout << "TEST22222\n\n\n";
             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+        }
         else
         {
             if (!_channels[split[0]].isChanMember(_clients[client_fd].getNickname())) // check if the client is in the channel
@@ -556,17 +573,27 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
             else
             {
                 if (split.size() < 2) // check if the command has enough parameters
+                {
+                    std::cout << "TEST33333\n\n\n";
                     sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+                }
                 else
                 {
                     int targetFD = findClientFdByUser(split[1]);
                     if (targetFD == -1)
+                    {
+                        std::cout << "TEST44444\n\n\n";
                         sendError(client_fd, ERR_NOSUCHNICK, split[1]);
+                    }
                     else
                     {
-                        std::string nick = _clients[targetFD].getNickname();
-                        if (!_channels[split[1]].isChanMember(nick))          // check if the target is in the channel
-                            sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+                        std::string nick = _clients[targetFD].getNickname(); 
+                        std::cout << "=====> "<< nick << std::endl;
+                        if (!_channels[split[1]].isChanMember(nick)) // check if the target is in the channel
+                        {
+                            std::cout << "TEST55555===>split[1]" << split[1] << "\n\n\n";
+                            sendError(client_fd, ERR_NOTONCHANNEL, split[1]);
+                        }
                         else
                         {
                             _channels[split[0]].removeClient(nick); // remove the target from the channel
@@ -580,7 +607,10 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
                             else // send the message to the target
                             {
                                 if (split[1][0] != ':') // check if the message is valid
+                                {
+                                    std::cout << "TEST66666\n\n\n";
                                     sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+                                }
                                 else
                                 {
                                     if (split[1][1] == '\0') // check if the message is empty
@@ -642,7 +672,10 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                             if (split[1][1] == '\0')
                                 _channels[split[0]].setTopic("");
                             else
+                            {
                                 _channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
+                                sendWelcomeRpl(client_fd, split[0], RPL_TOPIC, split[1]);
+                            }
                         }
                     }
                 }
@@ -650,6 +683,54 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
         }
     }
 }
+
+
+// MODE >>>>>>>>>>>>>>>>>>>>>>>>
+
+// void Server::modeCmd(int client_fd, std::string cleanLine)
+// {
+//     std::vector<std::string> split = splitWithSpaces(cleanLine);
+
+//     if (split.size() < 2)
+//         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+//     else
+//     {
+//         if (!isChanNameValid(split[0]))
+//             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+//         else
+//         {
+//             if (!isChannelExist(split[0]))
+//                 sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+//             else
+//             {
+//                 //std::string 
+//                 if (join[1] == "+i")
+//                     //set the channel to invite only
+//                 else if (join[1] == "-i")
+//                     //remove Invite-only channel
+//                 else if (join[1] == "+t")
+//                     //set the restrictions of the TOPIC command to channel operators
+//                 else if (join[1] == "-t")
+//                     // remove the restrictions of the TOPIC command to channel operators
+//                 else if (join[1] == "+k")
+//                     // set the channel key (password)
+//                 else if (join[1] == "-k")
+//                     //remove the channel key (password)
+//                 else if (join[1] == "+o")
+//                     //Give channel operator privilege
+//                 else if (join[1] == "-o")
+//                     //Take channel operator privilege
+//                 else if (join[1] == "+l")
+//                     // set the user limit to channel
+//                 else if (join[1] == "-l")
+//                     //remove the user limit to channel
+//                 else
+//                     sendError(client_fd, ERR_UNKNOWNMODE, split[1]);
+//             }
+//         }
+//     }
+// }
+
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
