@@ -1,6 +1,6 @@
 #include "Channel.hpp"
 
-Channel::Channel(std::string name, std::string key, std::string chanOpsNick) : _name(name), _key(key), _inviteOnly(false)
+Channel::Channel(std::string name, std::string key, std::string chanOpsNick) : _name(name), _key(key), _inviteOnly(false), _topicRestriction(false), _limit(false)
 {
     _topic = "";
     _chanOps.push_back(chanOpsNick);
@@ -42,4 +42,21 @@ void Channel::removeClient(std::string nick)
             return;
         }
     }
+}
+
+void Channel::removeChanOps(std::string nick)
+{
+    for (std::vector<std::string>::iterator it = _chanOps.begin(); it != _chanOps.end(); it++)
+    {
+        if (*it == nick)
+        {
+            _chanOps.erase(it);
+            break;
+        }
+    }
+}
+
+void Channel::addChanOps(std::string nick)
+{
+    _chanOps.push_back(nick);
 }

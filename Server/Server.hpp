@@ -57,6 +57,7 @@ public:
     // Channel *******************************
     std::string findChannelByFd(int fd);
     bool isChanNameValid(std::string name);
+    void MsgToChannel(std::string chanName, std::string msg, int client_fd);
 
     // RPLY ---------------------------------------------------------------------
     void sendWelcomeRpl(int client_fd, std::string nick, int code, std::string param);
@@ -73,7 +74,7 @@ public:
     void inviteCmd(int client_fd, std::string cleanLine);
     void KickCmd(int client_fd, std::string cleanLine);
     void topicCmd(int client_fd, std::string cleanLine);
-    //void modeCmd(int client_fd, std::string cleanLine);
+    void modeCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

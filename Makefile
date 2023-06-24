@@ -26,8 +26,8 @@ WHITE := "\x1b[37m"
 all : $(NAME)
 
 $(NAME) : ${SRCS}
-	$(CONTROL)
-	${CPP} ${CFLAGS} $(SRCS) -o $(NAME) 
+# $(CONTROL)
+	${CPP} ${CFLAGS} $(SRCS) -o $(NAME)
 	@echo $(BOLD)$(GREEN)"\n✅\tMandatory Compiled\n\t" $(WHITE)"Program - "$(YELLOW)"($(NAME))\n" $(RESET)
 
 clean :

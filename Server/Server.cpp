@@ -110,7 +110,8 @@ void Server::newClient()
 void Server::ClientRecv(int client_fd)
 {
     std::vector<char> buffer(5000);
-    size_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
+    ssize_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
+    std::cout << "Client " << client_fd << " sent :\n" << buffer.data() << std::endl;
     if (!ReadingFromC)
     {
         std::cout << "Client " << client_fd << " disconnected!\n";
@@ -185,7 +186,7 @@ void Server::ClientRecv(int client_fd)
             else
                 sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
             if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
-                sendWelcomeRpl(client_fd,"", WELCOMINGCODE,"");
+                sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
         }
         else
         {
@@ -281,6 +282,20 @@ bool Server::isChanNameValid(std::string name)
         return false;
     return true;
 }
+
+void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
+{
+    std::string nick = _clients[client_fd].getNickname();
+    std::string message = ":" + nick + " PRIVMSG " + chanName + " " + msg + "\n";
+    std::vector<std::string> clients = _channels[chanName].getClients();
+    for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
+    {
+        int fd = findClientFdByNick(*it);
+        if (fd != client_fd)
+            send(fd, message.c_str(), message.size(), 0);
+    }
+}
+
 // Send Replay ------------------------------------------------------------------------------------------
 void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::string Channel)
 {
@@ -291,7 +306,7 @@ void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::stri
 
     std::string message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
     std::string msg = fd_str + " :You are now an IRC operator\n";
-    std::string inv = fd_str + " has been invited " + nick + " to " + Channel +"\n";
+    std::string inv = fd_str + " has been invited " + nick + " to " + Channel + "\n";
     std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\n";
 
     if (code == 001)
@@ -394,8 +409,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         KickCmd(client_fd, cleanLine);
     else if (cmd == "TOPIC")
         topicCmd(client_fd, cleanLine);
-    // else if (cmd == "MODE")
-    //     modeCmd(client_fd, cleanLine);
+    else if (cmd == "MODE")
+        modeCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -412,7 +427,7 @@ void Server::operCmd(int client_fd, std::string cleanLine)
         {
             _clients[client_fd].setOperator(true);
             // send oper RPL
-            sendWelcomeRpl(client_fd, "",RPL_AWAY,"");
+            sendWelcomeRpl(client_fd, "", RPL_AWAY, "");
         }
         else
             sendError(client_fd, ERR_PASSWDMISMATCH, cleanLine);
@@ -427,17 +442,39 @@ void Server::privmsg(int client_fd, std::string cleanLine)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
     {
-        int fd = findClientFdByNick(msg[0]);
-        if (fd == -1)
-            sendError(client_fd, ERR_NOSUCHNICK, cleanLine); // error nick not found
+        if (msg[0][0] == '#')
+        {
+            if (isChannelExist(msg[0]))
+            {
+                if (!_channels[msg[0]].isChanMember(_clients[client_fd].getNickname()))
+                    sendError(client_fd, ERR_NOTONCHANNEL, msg[0]);
+                else
+                {
+                    if (msg[1][0] != ':')
+                        sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+                    else
+                        MsgToChannel(msg[0], cleanLine.substr(cleanLine.find(":", msg[0].size()) + 1), client_fd);
+                }
+            }
+            else
+                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
+        }
         else
         {
-            if (msg[1][0] != ':')
-                sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+            int fd = findClientFdByNick(msg[0]);
+            if (fd == -1)
+                sendError(client_fd, ERR_NOSUCHNICK, cleanLine); // error nick not found
             else
             {
-                std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG " + _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":")) + "\n";
-                send(fd, msg.c_str(), msg.size(), 0);
+                if (msg[1][0] != ':')
+                    sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+                else
+                {
+                    std::string msg = ":" + _clients[fd].getNickname() + " PRIVMSG "\
+                    + _clients[client_fd].getNickname() + " "\
+                    + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    send(fd, msg.c_str(), msg.size(), 0);
+                }
             }
         }
     }
@@ -537,7 +574,7 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
                             {
                                 _channels[inv[1]].addClient(invitedNick);
                                 std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
-                                sendWelcomeRpl(client_fd, inv[0] ,RPL_INVITING, inv[1]);
+                                sendWelcomeRpl(client_fd, inv[0], RPL_INVITING, inv[1]);
                                 send(cInvited, msg.c_str(), msg.size(), 0);
                                 std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
                             }
@@ -556,14 +593,12 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 
     if (!isChanNameValid(split[0]))
     {
-        std::cout << "TEST11111\n\n\n";
         sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
     }
     else
     {
         if (!isChannelExist(split[0]))
         {
-            std::cout << "TEST22222\n\n\n";
             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
         }
         else
@@ -574,7 +609,6 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
             {
                 if (split.size() < 2) // check if the command has enough parameters
                 {
-                    std::cout << "TEST33333\n\n\n";
                     sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
                 }
                 else
@@ -582,22 +616,19 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
                     int targetFD = findClientFdByUser(split[1]);
                     if (targetFD == -1)
                     {
-                        std::cout << "TEST44444\n\n\n";
                         sendError(client_fd, ERR_NOSUCHNICK, split[1]);
                     }
                     else
                     {
-                        std::string nick = _clients[targetFD].getNickname(); 
-                        std::cout << "=====> "<< nick << std::endl;
-                        if (!_channels[split[1]].isChanMember(nick)) // check if the target is in the channel
+                        std::string nick = _clients[targetFD].getNickname();
+                        if (!_channels[split[0]].isChanMember(nick)) // check if the target is in the channel
                         {
-                            std::cout << "TEST55555===>split[1]" << split[1] << "\n\n\n";
                             sendError(client_fd, ERR_NOTONCHANNEL, split[1]);
                         }
                         else
                         {
                             _channels[split[0]].removeClient(nick); // remove the target from the channel
-                            if (split.size() == 2)                 // check if the command has a message
+                            if (split.size() == 2)                  // check if the command has a message
                             {
                                 std::string msg = ":" + _clients[client_fd].getNickname() + " KICK " + split[0] + " " + nick + "\n";
                                 send(client_fd, msg.c_str(), msg.size(), 0);
@@ -608,7 +639,6 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
                             {
                                 if (split[1][0] != ':') // check if the message is valid
                                 {
-                                    std::cout << "TEST66666\n\n\n";
                                     sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
                                 }
                                 else
@@ -622,8 +652,7 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
                                     {
                                         std::string msg = ": YOU Eject " + nick + " from " + split[0] + "\n";
                                         send(client_fd, msg.c_str(), msg.size(), 0);
-                                        msg = ":" + _clients[targetFD].getNickname() + " you got kicked from " + split[0] + " " \
-                                        + cleanLine.substr(cleanLine.find(":", split[0].size()) + 1) + "\n"; // get the message after the :
+                                        msg = ":" + _clients[targetFD].getNickname() + " you got kicked from " + split[0] + " " + cleanLine.substr(cleanLine.find(":", split[0].size()) + 1) + "\n"; // get the message after the :
                                         send(targetFD, msg.c_str(), msg.size(), 0);
                                     }
                                 }
@@ -684,53 +713,54 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
     }
 }
 
-
 // MODE >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::modeCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithSpaces(cleanLine);
 
-// void Server::modeCmd(int client_fd, std::string cleanLine)
-// {
-//     std::vector<std::string> split = splitWithSpaces(cleanLine);
-
-//     if (split.size() < 2)
-//         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
-//     else
-//     {
-//         if (!isChanNameValid(split[0]))
-//             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
-//         else
-//         {
-//             if (!isChannelExist(split[0]))
-//                 sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
-//             else
-//             {
-//                 //std::string 
-//                 if (join[1] == "+i")
-//                     //set the channel to invite only
-//                 else if (join[1] == "-i")
-//                     //remove Invite-only channel
-//                 else if (join[1] == "+t")
-//                     //set the restrictions of the TOPIC command to channel operators
-//                 else if (join[1] == "-t")
-//                     // remove the restrictions of the TOPIC command to channel operators
-//                 else if (join[1] == "+k")
-//                     // set the channel key (password)
-//                 else if (join[1] == "-k")
-//                     //remove the channel key (password)
-//                 else if (join[1] == "+o")
-//                     //Give channel operator privilege
-//                 else if (join[1] == "-o")
-//                     //Take channel operator privilege
-//                 else if (join[1] == "+l")
-//                     // set the user limit to channel
-//                 else if (join[1] == "-l")
-//                     //remove the user limit to channel
-//                 else
-//                     sendError(client_fd, ERR_UNKNOWNMODE, split[1]);
-//             }
-//         }
-//     }
-// }
-
+    if (split.size() < 2)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine); // repl insted of error
+    else
+    {
+        if (!isChanNameValid(split[0]))
+            sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+        else
+        {
+            if (!isChannelExist(split[0]))
+                sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+            else
+            {
+                if (_channels[split[0]].isChanOps(_clients[client_fd].getNickname()))
+                {
+                    if (split[1] == "+i")
+                        _channels[split[0]].setInviteOnly(true);
+                    else if (split[1] == "-i")
+                        _channels[split[0]].setInviteOnly(false);
+                    else if (split[1] == "+t")
+                        _channels[split[0]].setTopicRestriction(true);
+                    else if (split[1] == "-t")
+                        _channels[split[0]].setTopicRestriction(false);
+                    else if (split[1] == "+k" && split.size() == 3)
+                        _channels[split[0]].setKey(split[2]);
+                    else if (split[1] == "-k")
+                        _channels[split[0]].setKey("");
+                    else if (split[1] == "+o")
+                        _channels[split[0]].addChanOps(split[2]);
+                    else if (split[1] == "-o")
+                        _channels[split[0]].removeChanOps(split[2]);
+                    else if (split[1] == "+l")
+                        _channels[split[0]].setLimit(true);
+                    else if (split[1] == "-l")
+                        _channels[split[0]].setLimit(false);
+                    else
+                        sendError(client_fd, ERR_UNKNOWNMODE, split[1]);
+                }
+                else
+                    sendError(client_fd, ERR_CHANOPRIVSNEEDED, split[0]);
+            }
+        }
+    }
+}
 
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
