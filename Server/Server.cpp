@@ -286,7 +286,8 @@ bool Server::isChanNameValid(std::string name)
 void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 {
     std::string nick = _clients[client_fd].getNickname();
-    std::string message = ":" + nick + " PRIVMSG " + chanName + " :" + msg + "\n";
+    // [channel_name] <sender_nick> message_content
+    std::string message = "[" + chanName + "]" + " <" + nick + "> " + msg + "\n";
     std::vector<std::string> clients = _channels[chanName].getClients();
     for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
     {
@@ -470,7 +471,8 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                     sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
                 else
                 {
-                    std::string msg = ":" + _clients[client_fd].getNickname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    // <sender> <message>
+                    std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }
