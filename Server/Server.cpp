@@ -141,6 +141,9 @@ void Server::ClientRecv(int client_fd)
         std::string cmd = CleanLine.substr(0, pos);
 
         // Pass if passwd is correct then auth = true
+        if (cmd == "CAP")
+            continue;
+        
         if (_clients[client_fd].getAuth() == false)
         {
             if (cmd != "PASS" && cmd != "pass")
@@ -190,8 +193,12 @@ void Server::ClientRecv(int client_fd)
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
-                    send(client_fd, "001 :Welcome to the IRC Network\n", 33, 0);
-                    std::cout << "Client " << client_fd << " is now registered\n";
+                    // std::string msg = "001 :" + _clients[client_fd].getHostname() + "\n";
+                    // <server_name> 001 <your_nick> :Welcome to the IRC Network <your_nick>
+                    std::string msg = _clients[client_fd].getHostname() + " 001 " + _clients[client_fd].getNickname() + " :Welcome to the IRC Network " + _clients[client_fd].getNickname() + "\n";
+                    send(client_fd, msg.c_str(), msg.size(), 0);
+                    std::cout << "Client [" << _clients[client_fd].getNickname() << "] is now registered\n";
+                    std::cout << _clients[client_fd].getHostname() << "\n";
                 }
                 // sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
             }
@@ -573,7 +580,9 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
                             else
                             {
                                 _channels[inv[1]].addClient(invitedNick);
-                                std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
+                                // std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
+                                // -!- <inviter_nick> invited you to join channel <channel_name>
+                                std::string msg = "-!- " + nick + " invited you to join channel " + inv[1] + "\n";
                                 sendWelcomeRpl(client_fd, inv[0], RPL_INVITING, inv[1]);
                                 send(cInvited, msg.c_str(), msg.size(), 0);
                                 std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
