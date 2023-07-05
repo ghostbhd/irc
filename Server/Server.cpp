@@ -338,13 +338,14 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(501, " :Unknown MODE flag\n"));
     _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
     _errorMsg.insert(std::make_pair(401, " :No such nick/channel\n"));
-    _errorMsg.insert(std::make_pair(401, " :Too many targets\n"));
+    _errorMsg.insert(std::make_pair(407, " :Too many targets\n"));
     _errorMsg.insert(std::make_pair(403, " :No such channel\n"));
     _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\n"));
     _errorMsg.insert(std::make_pair(405, " :You are already registred\n"));
     _errorMsg.insert(std::make_pair(482, " :You're not channel operator\n"));
     _errorMsg.insert(std::make_pair(442, " :You're not on that channel\n"));
     _errorMsg.insert(std::make_pair(472, " :is unknown mode char to me\n"));
+    _errorMsg.insert(std::make_pair(421, " :bot does not recognize the command\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -384,7 +385,8 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 472)
         error = fd_string + " " + command + _errorMsg[error_code];
-
+    else if (error_code == 421)
+        error = fd_string + " " + command + _errorMsg[error_code];
     send(client_fd, error.c_str(), error.size(), 0);
 }
 
@@ -419,6 +421,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         topicCmd(client_fd, cleanLine);
     else if (cmd == "MODE")
         modeCmd(client_fd, cleanLine);
+    else if (cmd == "BOT")
+        botCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -771,6 +775,44 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
     }
 }
 
+// BOT >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::botCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+    if (split.size() < 1)
+    {
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+        return;
+    }
+    else
+    {
+        if (split[0] == "Version")
+        {
+            std::string msg = ":" + _clients[client_fd].getNickname() + " BOT Version 1.0\n";
+            send(client_fd, msg.c_str(), msg.size(), 0);
+        }
+        else if (split[0] == "Info")
+        {
+            std::stringstream ss; std::string port;
+            ss << getPort(); ss >> port;
+            std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _clients[client_fd].getHostname() + "\n" + "Port: " + port + "\n";
+            send(client_fd, msg.c_str(), msg.size(), 0);
+        }
+        else if (split[0] == "Time")
+        {
+            time_t now = time(0);
+            tm *ltm = localtime(&now);
+            std::stringstream oss;
+            std::string hour, min, sec;
+            oss << ltm->tm_hour << ":" << ltm->tm_min << ":" << ltm->tm_sec;
+            oss >> hour >> min >> sec;
+            std::string msg = ":" + _clients[client_fd].getNickname() + " BOT Time " + hour + min + sec + "\n";
+            send(client_fd, msg.c_str(), msg.size(), 0);
+        }
+        else
+            sendError(client_fd, ERR_UNKNOWNCOMMAND, split[0]);
+    }
+}
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
 int Server::getSock_fd() const { return (this->_sock_fd); }   // _sock_fd
