@@ -295,9 +295,10 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 {
     std::string nick = _clients[client_fd].getNickname();
     // [channel_name] <sender_nick> message_content
-    std::string message = "[" + chanName + "]" + " <" + nick + "> " + msg + "\n";
+    std::string message = ":" + _clients[client_fd].getNickname() + "!~h@" + _clients[client_fd].getHostname() + " PRIVMSG " + chanName + " :" + msg + "\n";;
     std::vector<std::string> clients = _channels[chanName].getClients();
     for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
+    
     {
         int fd = findClientFdByNick(*it);
         if (fd != client_fd)
@@ -331,22 +332,22 @@ void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::stri
 // Error handling ---------------------------------------------------------------------------------------
 void Server::initErrorMsg()
 {
-    _errorMsg.insert(std::make_pair(433, " :Nickname is already in use\n"));
-    _errorMsg.insert(std::make_pair(443, " :is already on channel\n"));
-    _errorMsg.insert(std::make_pair(451, " :You have not registered\n"));
-    _errorMsg.insert(std::make_pair(461, " :Not enough parameters\n"));
-    _errorMsg.insert(std::make_pair(464, " :Password incorrect\n"));
-    _errorMsg.insert(std::make_pair(501, " :Unknown MODE flag\n"));
-    _errorMsg.insert(std::make_pair(462, " :You may not reregister\n"));
-    _errorMsg.insert(std::make_pair(401, " :No such nick/channel\n"));
-    _errorMsg.insert(std::make_pair(407, " :Too many targets\n"));
-    _errorMsg.insert(std::make_pair(403, " :No such channel\n"));
-    _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\n"));
-    _errorMsg.insert(std::make_pair(405, " :You are already registred\n"));
-    _errorMsg.insert(std::make_pair(482, " :You're not channel operator\n"));
-    _errorMsg.insert(std::make_pair(442, " :You're not on that channel\n"));
-    _errorMsg.insert(std::make_pair(472, " :is unknown mode char to me\n"));
-    _errorMsg.insert(std::make_pair(421, " :bot does not recognize the command\n"));
+    _errorMsg.insert(std::make_pair(433, " :Nickname is already in use\r\n"));
+    _errorMsg.insert(std::make_pair(443, " :is already on channel\r\n"));
+    _errorMsg.insert(std::make_pair(451, " :You have not registered\r\n"));
+    _errorMsg.insert(std::make_pair(461, " :Not enough parameters\r\n"));
+    _errorMsg.insert(std::make_pair(464, " :Password incorrect\r\n"));
+    _errorMsg.insert(std::make_pair(501, " :Unknown MODE flag\r\n"));
+    _errorMsg.insert(std::make_pair(462, " :You may not reregister\r\n"));
+    _errorMsg.insert(std::make_pair(401, " :No such nick/channel\r\n"));
+    _errorMsg.insert(std::make_pair(407, " :Too many targets\r\n"));
+    _errorMsg.insert(std::make_pair(403, " :No such channel\r\n"));
+    _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\r\n"));
+    _errorMsg.insert(std::make_pair(405, " :You are already registred\r\n"));
+    _errorMsg.insert(std::make_pair(482, " :You're not channel operator\r\n"));
+    _errorMsg.insert(std::make_pair(442, " :You're not on that channel\r\n"));
+    _errorMsg.insert(std::make_pair(472, " :is unknown mode char to me\r\n"));
+    _errorMsg.insert(std::make_pair(421, " :bot does not recognize the command\r\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -357,7 +358,8 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     ss << client_fd;
     ss >> fd_string;
     if (error_code == 433)
-        error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+        error = ":ircserver 433 *" + _errorMsg[error_code];
+        // error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
     else if (error_code == 443)
         error = fd_string + " " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code];
     else if (error_code == 451)
@@ -487,7 +489,7 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                 {
                     // <sender> <message>
                     // std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
-                    std::string msg = _clients[client_fd].getNickname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    std::string msg = ":" + _clients[client_fd].getNickname() + "!~h@" + _clients[client_fd].getHostname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }
