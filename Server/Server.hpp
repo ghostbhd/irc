@@ -5,7 +5,7 @@
 #include "../Client/Client.hpp"
 #include "../Channel/Channel.hpp"
 
-#define WELCOMINGCODE 001
+#define RPL_WELCOMINGCODE 001
 #define RPL_AWAY 381
 #define RPL_INVITING 341
 #define RPL_TOPIC 332

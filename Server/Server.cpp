@@ -168,11 +168,15 @@ void Server::ClientRecv(int client_fd)
                     if (nick.size() != 1)
                         sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
                     else if (findClientFdByNick(nick[0]) != -1)
-                        sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
+                        sendError(client_fd, ERR_NICKNAMEINUSE, nick[0]);
                     else
                     {
                         if (_clients[client_fd].getNickname().empty())
+                        {
                             _clients[client_fd].setNickname(nick[0]);
+                            std::string msg = ":" + _clients[client_fd].getNickname() + " NICK " + _clients[client_fd].getNickname() + "\r\n";
+                            send(client_fd, msg.c_str(), msg.size(), 0);
+                        }
                         else
                             sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
                     }
@@ -181,31 +185,24 @@ void Server::ClientRecv(int client_fd)
                 {
                     std::vector<std::string> user = splitWithChar(CleanLine.substr(pos + 1), ' ');
 
-                    if (findClientFdByUser(user[0]) != -1)
-                        sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
-                    else if (_clients[client_fd].getUsername().empty())
+                    if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user[0]);
                     else
                         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
                 }
                 else
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
+
+                std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
+
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
-                    // <server_name> 001 <your_nick> :Welcome to the IRC Network <your_nick>
-                    // std::string msg = _clients[client_fd].getHostname() + " 001 " + _clients[client_fd].getNickname() + " :Welcome to the IRC Network " + _clients[client_fd].getNickname() + "\n";
-
-                    std::string msg = "001 :" + _clients[client_fd].getHostname() + "\n";
-                    send(client_fd, msg.c_str(), msg.size(), 0);
-
+                    sendWelcomeRpl(client_fd, _clients[client_fd].getNickname(), RPL_WELCOMINGCODE, "");
                     std::cout << "Client [" << _clients[client_fd].getNickname() << "] is now registered\n";
-                    std::cout << _clients[client_fd].getHostname() << "\n";
                 }
-                // sendWelcomeRpl(client_fd, "", WELCOMINGCODE, "");
             }
             else
             {
-                // All Other Commands Here : OPER / JOIN / PRIVMSG / ...
                 mainCommands(client_fd, &CleanLine[pos + 1], cmd);
             }
         }
@@ -314,10 +311,12 @@ void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::stri
     cl_fd << client_fd;
     cl_fd >> fd_str;
 
-    std::string message = fd_str + " :Welcome to the IRC Network, " + this->_clients[client_fd].getNickname() + "[!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "]\n";
-    std::string msg = fd_str + " :You are now an IRC operator\n";
-    std::string inv = fd_str + " has been invited " + nick + " to " + Channel + "\n";
-    std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\n";
+    // :server-name 001 your_nickname :Welcome to the IRC Network, your_nickname!user@host
+
+    std::string message = ":" + _clients[client_fd].getHostname() + " 001 " + nick + " :Welcome to the IRC Network, " + nick + "!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "\r\n";
+    std::string msg = fd_str + " :You are now an IRC operator\r\n";
+    std::string inv = fd_str + " has been invited " + nick + " to " + Channel + "\r\n";
+    std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\r\n";
 
     if (code == 001)
         send(client_fd, message.c_str(), message.size(), 0);
@@ -358,8 +357,7 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     ss << client_fd;
     ss >> fd_string;
     if (error_code == 433)
-        error = ":ircserver 433 *" + _errorMsg[error_code];
-        // error = fd_string + " " + _clients[client_fd].getNickname() + _errorMsg[error_code];
+        error = ":" + _clients[client_fd].getHostname() + " 433 * " + command + _errorMsg[error_code]; // :server-name 433 * your_nickname :Nickname is already in use.
     else if (error_code == 443)
         error = fd_string + " " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code];
     else if (error_code == 451)
@@ -390,6 +388,7 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 421)
         error = fd_string + " " + command + _errorMsg[error_code];
+    std::cout << "Error: " << error << std::endl;
     send(client_fd, error.c_str(), error.size(), 0);
 }
 
@@ -428,6 +427,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         pingCmd(client_fd, cleanLine);
     else if (cmd == "BOT")
         botCmd(client_fd, cleanLine);
+    else if (cmd == "WHOIS")
+        return ;
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -589,12 +590,14 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
                                 sendError(client_fd, ERR_USERONCHANNEL, inv[1]);
                             else
                             {
-                                _channels[inv[1]].addClient(invitedNick);
-                                // std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
-                                // -!- <inviter_nick> invited you to join channel <channel_name>
-                                std::string msg = nick + " invited you to join channel " + inv[1] + "\n";
-                                sendWelcomeRpl(client_fd, inv[0], RPL_INVITING, inv[1]);
+                                
+                                // _channels[inv[1]].addClient(invitedNick);
+
+                                // :inviter_nick INVITE your_nick :#channel
+                                std::string msg = ":" + nick + " INVITE " + invitedNick + " :" + inv[1] + "\r\n";
                                 send(cInvited, msg.c_str(), msg.size(), 0);
+                                
+                                // sendWelcomeRpl(client_fd, inv[0], RPL_INVITING, inv[1]);
                                 std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
                             }
                         }
@@ -742,7 +745,7 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
     else
     {
         if (!isChanNameValid(split[0]))
-            sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+            return;
         else
         {
             if (!isChannelExist(split[0]))
@@ -791,7 +794,7 @@ void Server::pingCmd(int client_fd, std::string cleanLine)
 }
 
 // BOT >>>>>>>>>>>>>>>>>>>>>>>>
-void Server::botCmd(int client_fd, std::string cleanLine)
+void Server::botCmd(int client_fd, std::string cleanLine) 
 {
     std::vector<std::string> split = splitWithChar(cleanLine, ' ');
     if (split.size() < 1)
@@ -812,7 +815,7 @@ void Server::botCmd(int client_fd, std::string cleanLine)
             std::string port;
             ss << getPort();
             ss >> port;
-            std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _clients[client_fd].getHostname() + "\n" + "Port: " + port + "\n";
+            std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _clients[client_fd].getHostname() + "\n" + "Port: " + port + "\n" + "Server: IRC server\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
         }
         else if (split[0] == "Time")
