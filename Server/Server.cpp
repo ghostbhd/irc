@@ -193,10 +193,13 @@ void Server::ClientRecv(int client_fd)
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
-                    // std::string msg = "001 :" + _clients[client_fd].getHostname() + "\n";
                     // <server_name> 001 <your_nick> :Welcome to the IRC Network <your_nick>
-                    std::string msg = _clients[client_fd].getHostname() + " 001 " + _clients[client_fd].getNickname() + " :Welcome to the IRC Network " + _clients[client_fd].getNickname() + "\n";
+                    // std::string msg = _clients[client_fd].getHostname() + " 001 " + _clients[client_fd].getNickname() + " :Welcome to the IRC Network " + _clients[client_fd].getNickname() + "\n";
+                    
+                    std::string msg = "001 :" + _clients[client_fd].getHostname() + "\n";
                     send(client_fd, msg.c_str(), msg.size(), 0);
+
+
                     std::cout << "Client [" << _clients[client_fd].getNickname() << "] is now registered\n";
                     std::cout << _clients[client_fd].getHostname() << "\n";
                 }
@@ -421,6 +424,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         topicCmd(client_fd, cleanLine);
     else if (cmd == "MODE")
         modeCmd(client_fd, cleanLine);
+    else if (cmd == "PING")
+        pingCmd(client_fd, cleanLine);
     else if (cmd == "BOT")
         botCmd(client_fd, cleanLine);
     else
@@ -483,7 +488,10 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                 else
                 {
                     // <sender> <message>
-                    std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    // std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    std::string msg = _clients[client_fd].getNickname() + " PRIVMSG " 
+                    + _clients[fd].getNickname() + " :" 
+                    + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }
@@ -586,7 +594,7 @@ void Server::inviteCmd(int client_fd, std::string cleanLine)
                                 _channels[inv[1]].addClient(invitedNick);
                                 // std::string msg = inv[0] + " is a member in " + inv[1] + "\n";
                                 // -!- <inviter_nick> invited you to join channel <channel_name>
-                                std::string msg = "-!- " + nick + " invited you to join channel " + inv[1] + "\n";
+                                std::string msg = nick + " invited you to join channel " + inv[1] + "\n";
                                 sendWelcomeRpl(client_fd, inv[0], RPL_INVITING, inv[1]);
                                 send(cInvited, msg.c_str(), msg.size(), 0);
                                 std::cout << _clients[client_fd].getNickname() << " has invited " << inv[0] << " to the channel " << inv[1] << "\n";
@@ -775,6 +783,15 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
     }
 }
 
+// PING >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::pingCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+
+    std::string msg = "PONG " + split[0] + "\n";
+    send(client_fd, msg.c_str(), msg.size(), 0);
+}
+
 // BOT >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::botCmd(int client_fd, std::string cleanLine)
 {
@@ -813,6 +830,7 @@ void Server::botCmd(int client_fd, std::string cleanLine)
             sendError(client_fd, ERR_UNKNOWNCOMMAND, split[0]);
     }
 }
+
 // Getters ----------------------------------------------------------------------------------------------
 int Server::getPort() const { return (this->_port); }         // _port
 int Server::getSock_fd() const { return (this->_sock_fd); }   // _sock_fd
