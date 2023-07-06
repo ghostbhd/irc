@@ -143,7 +143,7 @@ void Server::ClientRecv(int client_fd)
         // Pass if passwd is correct then auth = true
         if (cmd == "CAP")
             continue;
-        
+
         if (_clients[client_fd].getAuth() == false)
         {
             if (cmd != "PASS" && cmd != "pass")
@@ -167,6 +167,8 @@ void Server::ClientRecv(int client_fd)
                     std::vector<std::string> nick = splitWithChar(CleanLine.substr(pos + 1), ' ');
                     if (nick.size() != 1)
                         sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
+                    else if (findClientFdByNick(nick[0]) != -1)
+                        sendError(client_fd, ERR_NICKNAMEINUSE, CleanLine);
                     else
                     {
                         if (_clients[client_fd].getNickname().empty())
@@ -179,15 +181,12 @@ void Server::ClientRecv(int client_fd)
                 {
                     std::vector<std::string> user = splitWithChar(CleanLine.substr(pos + 1), ' ');
 
-                    // if (user.size() != 1)
-                    //     sendError(client_fd, ERR_NEEDMOREPARAMS, CleanLine);
-                    // else
-                    // {
-                    if (_clients[client_fd].getUsername().empty())
+                    if (findClientFdByUser(user[0]) != -1)
+                        sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
+                    else if (_clients[client_fd].getUsername().empty())
                         _clients[client_fd].setUsername(user[0]);
-                    //     else
-                    //         sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
-                    // }
+                    else
+                        sendError(client_fd, ERR_ALREADYREGISTERED, CleanLine);
                 }
                 else
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
@@ -195,10 +194,9 @@ void Server::ClientRecv(int client_fd)
                 {
                     // <server_name> 001 <your_nick> :Welcome to the IRC Network <your_nick>
                     // std::string msg = _clients[client_fd].getHostname() + " 001 " + _clients[client_fd].getNickname() + " :Welcome to the IRC Network " + _clients[client_fd].getNickname() + "\n";
-                    
+
                     std::string msg = "001 :" + _clients[client_fd].getHostname() + "\n";
                     send(client_fd, msg.c_str(), msg.size(), 0);
-
 
                     std::cout << "Client [" << _clients[client_fd].getNickname() << "] is now registered\n";
                     std::cout << _clients[client_fd].getHostname() << "\n";
@@ -217,7 +215,7 @@ void Server::ClientRecv(int client_fd)
 // Utils ------------------------------------------------------------------------------------------------
 std::string Server::deleteNewLine(std::string str)
 {
-    for(size_t i = 0; i < str.size(); i++)
+    for (size_t i = 0; i < str.size(); i++)
     {
         if (str[i] == '\n' || str[i] == '\r')
             str.erase(i, 1);
@@ -489,9 +487,7 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                 {
                     // <sender> <message>
                     // std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
-                    std::string msg = _clients[client_fd].getNickname() + " PRIVMSG " 
-                    + _clients[fd].getNickname() + " :" 
-                    + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    std::string msg = _clients[client_fd].getNickname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }
@@ -810,8 +806,10 @@ void Server::botCmd(int client_fd, std::string cleanLine)
         }
         else if (split[0] == "Info")
         {
-            std::stringstream ss; std::string port;
-            ss << getPort(); ss >> port;
+            std::stringstream ss;
+            std::string port;
+            ss << getPort();
+            ss >> port;
             std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _clients[client_fd].getHostname() + "\n" + "Port: " + port + "\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
         }
