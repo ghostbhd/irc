@@ -349,6 +349,8 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(442, " :You're not on that channel\r\n"));
     _errorMsg.insert(std::make_pair(472, " :is unknown mode char to me\r\n"));
     _errorMsg.insert(std::make_pair(421, " :bot does not recognize the command\r\n"));
+    _errorMsg.insert(std::make_pair(411, " :No recipient given\r\n"));
+    _errorMsg.insert(std::make_pair(404, " :Cannot send to channel\r\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -390,6 +392,10 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 421)
         error = fd_string + " " + command + _errorMsg[error_code];
+    else if (error_code == 411)
+        error = ":" + _clients[client_fd].getHostname() + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //:irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
+    else if (error_code == 404)
+        error = ":" + _clients[client_fd].getHostname() + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code];//:irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
     else if (error_code == 473)
         error = ":" + _clients[client_fd].getHostname() + " 473 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
     std::cout << "Error: " << error << std::endl;
@@ -431,6 +437,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         pingCmd(client_fd, cleanLine);
     else if (cmd == "BOT")
         botCmd(client_fd, cleanLine);
+    else if (cmd == "NOTICE")
+        noticeCmd(client_fd, cleanLine);
     else if (cmd == "WHOIS")
         return;
     else
@@ -792,6 +800,50 @@ void Server::pingCmd(int client_fd, std::string cleanLine)
 
     std::string msg = "PONG " + split[0] + "\n";
     send(client_fd, msg.c_str(), msg.size(), 0);
+}
+
+// NOTICE >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::noticeCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> notif = splitWithChar(cleanLine, ' ');
+    if (notif.size() < 2)
+        sendError(client_fd, ERR_NORECIPIENT, cleanLine);
+    else
+    {
+        if (notif[0][0] == '#')
+        {
+            if (isChannelExist(notif[0]))
+            {
+                if (!_channels[notif[0]].isChanMember(_clients[client_fd].getNickname()))
+                    sendError(client_fd, ERR_CANNOTSENDTOCHAN, notif[0]);
+                else
+                {
+                    if (notif[1][0] != ':')
+                        sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+                    else
+                        MsgToChannel(notif[0], cleanLine.substr(cleanLine.find(":", notif[0].size()) + 1), client_fd);
+                }
+            }
+            else
+                sendError(client_fd, ERR_NOSUCHCHANNEL, cleanLine);
+        }
+        else
+        {
+            int fd = findClientFdByNick(notif[0]);
+            if (fd == -1)
+                sendError(client_fd, ERR_NOSUCHNICK, cleanLine);
+            else
+            {
+                if (notif[1][0] != ':')
+                    sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
+                else
+                {
+                    std::string msg = ":" + _clients[client_fd].getNickname() + " NOTICE " + notif[0] + " :" + cleanLine.substr(cleanLine.find(":", notif[0].size()) + 1) + "\n";
+                    send(fd, msg.c_str(), msg.size(), 0);
+                }
+            }
+        }
+    }
 }
 
 // BOT >>>>>>>>>>>>>>>>>>>>>>>>

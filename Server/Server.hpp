@@ -77,6 +77,7 @@ public:
     void modeCmd(int client_fd, std::string cleanLine);
     void botCmd(int client_fd, std::string cleanLine);
     void pingCmd(int client_fd, std::string cleanLine);
+    void noticeCmd(int client_fd, std::string cleanLine);
 };
 
 #endif
