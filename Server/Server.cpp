@@ -111,8 +111,8 @@ void Server::ClientRecv(int client_fd)
 {
     std::vector<char> buffer(5000);
     ssize_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
-    std::cout << "Client " << client_fd << " sent :\n"
-              << buffer.data() << std::endl;
+    // std::cout << "Client " << client_fd << " sent :\n"
+    //           << buffer.data() << std::endl;
     if (!ReadingFromC)
     {
         std::cout << "Client " << client_fd << " disconnected!\n";
@@ -141,6 +141,7 @@ void Server::ClientRecv(int client_fd)
         std::string cmd = CleanLine.substr(0, pos);
 
         // Pass if passwd is correct then auth = true
+
         if (cmd == "CAP")
             continue;
 
@@ -193,7 +194,7 @@ void Server::ClientRecv(int client_fd)
                 else
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
 
-                std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
+                //std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
 
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
@@ -366,7 +367,7 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     else if (error_code == 443)
         error = _clients[client_fd].getNickname() + _errorMsg[error_code]; // your-nickname :is already on channel\r\n
     else if (error_code == 451)
-        error = fd_string + _errorMsg[error_code];
+        error = ":" + _clients[client_fd].getHostname() + " 451 " + command + _errorMsg[error_code]; //:irc.server.com 451 JOIN :You have not registered\r\n";
     else if (error_code == 461)
         error = ":" + _clients[client_fd].getHostname() + " 461 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 461 your-nickname :Not enough parameters\r\n
     else if (error_code == 464)
@@ -443,6 +444,8 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         botCmd(client_fd, cleanLine);
     else if (cmd == "NOTICE")
         noticeCmd(client_fd, cleanLine);
+    else if (cmd == "PART")
+        partCmd(client_fd, cleanLine);
     else if (cmd == "WHOIS")
         return;
     else
@@ -870,6 +873,25 @@ void Server::noticeCmd(int client_fd, std::string cleanLine)
                 }
             }
         }
+    }
+}
+
+// PART >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::partCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+
+    if (split.size() > 1)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    if (!isChanNameValid(split[0]))
+        sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
+    else if (!isChannelExist(split[0]) && !_channels[split[0]].isChanMember(_clients[client_fd].getNickname()))
+            sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+    else
+    {
+        _channels[split[0]].removeMember(_clients[client_fd].getNickname());
+        std::string msg = ":" + _clients[client_fd].getNickname() + " PART " + split[0] + "\n";
+        send(client_fd, msg.c_str(), msg.size(), 0);
     }
 }
 
