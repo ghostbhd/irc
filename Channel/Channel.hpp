@@ -15,6 +15,7 @@ private:
     bool _inviteOnly;
     bool _topicRestriction;
     bool _limit; // TODO: implement limit
+    int _limitValue;
 
 public:
     Channel() {}
@@ -24,7 +25,7 @@ public:
 
     bool isChanMember(std::string nick);
 
-    void addClient(std::string nick);
+    void addMember(std::string nick);
     void removeClient(std::string nick);
 
     bool isChanOps(std::string nick);
@@ -35,14 +36,16 @@ public:
     void addInviteList(std::string nick);
     void removeInviteList(std::string nick);
 
+
     // Getters -------------------------------------------------------------------
     std::string getName() const { return _name; }
     std::string getTopic() const { return _topic; }
     std::string getKey() const { return _key; }
-    std::vector<std::string> getClients() const { return _members; }
+    std::vector<std::string> getMembers() const { return _members; }
     bool getInviteOnly() const { return _inviteOnly; }
     bool getTopicRestriction() const { return _topicRestriction; }
     bool getLimit() const { return _limit; }
+    int getLimitValue() const { return _limitValue; }
 
     // Setters -------------------------------------------------------------------
     void setName(std::string name) { _name = name; }
@@ -50,7 +53,8 @@ public:
     void setKey(std::string key) { _key = key; }
     void setInviteOnly(bool inviteOnly) { _inviteOnly = inviteOnly; }
     void setTopicRestriction(bool rest) { _topicRestriction = rest; }
-    void setLimit(bool limit) { _limit = limit; }
+    void setLimit(int limit) { _limit = limit; }
+    void setLimitValue(int limitValue) { _limitValue = limitValue; }
 };
 
 #endif

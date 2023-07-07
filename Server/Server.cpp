@@ -294,7 +294,7 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
     // [channel_name] <sender_nick> message_content
     std::string message = ":" + _clients[client_fd].getNickname() + "!~h@" + _clients[client_fd].getHostname() + " PRIVMSG " + chanName + " :" + msg + "\n";
     ;
-    std::vector<std::string> clients = _channels[chanName].getClients();
+    std::vector<std::string> clients = _channels[chanName].getMembers();
     for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
 
     {
@@ -351,6 +351,7 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(421, " :bot does not recognize the command\r\n"));
     _errorMsg.insert(std::make_pair(411, " :No recipient given\r\n"));
     _errorMsg.insert(std::make_pair(404, " :Cannot send to channel\r\n"));
+    _errorMsg.insert(std::make_pair(471, " :Cannot join channel (+l)\r\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -389,15 +390,18 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     else if (error_code == 442)
         error = ":" + _clients[client_fd].getHostname() + " 442 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 442 your-nickname :You're not on that channel\r\n
     else if (error_code == 472)
-        error = fd_string + " " + command + _errorMsg[error_code];
+        error = ":" + _clients[client_fd].getHostname() + " 472 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 472 your-nickname :Unknown mode char to me\r\n
     else if (error_code == 421)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 411)
-        error = ":" + _clients[client_fd].getHostname() + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //:irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
+        error = ":" + _clients[client_fd].getHostname() + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //: irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
     else if (error_code == 404)
-        error = ":" + _clients[client_fd].getHostname() + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code];//:irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
+        error = ":" + _clients[client_fd].getHostname() + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; //: irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
     else if (error_code == 473)
         error = ":" + _clients[client_fd].getHostname() + " 473 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
+    else if (error_code == 471)
+        error = ":" + _clients[client_fd].getHostname() + " 471 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
+
     std::cout << "Error: " << error << std::endl;
     send(client_fd, error.c_str(), error.size(), 0);
 }
@@ -527,7 +531,7 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
         {
             Channel newChannel(join[0], key, nick);                // create new channel (key, name, chanOps)
             _channels.insert(std::make_pair(join[0], newChannel)); // add channel to map
-            _channels[join[0]].addClient(nick);                    // add chanops to channel as client
+            _channels[join[0]].addMember(nick);                    // add chanops to channel as client
             std::string msg = ":" + nick + " JOIN " + join[0] + "\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
 
@@ -539,27 +543,32 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
                 sendError(client_fd, ERR_INVITEONLYCHAN, join[0]);
             else
             {
-                if (_channels[join[0]].getKey().empty()) // no key
+                if (_channels[join[0]].getLimit() && _channels[join[0]].getMembers().size() >= _channels[join[0]].getLimit()) // channel is full
+                    sendError(client_fd, ERR_CHANNELISFULL, join[0]);
+                else
                 {
-                    if (_channels[join[0]].isChanMember(nick)) // client already in channel
-                        sendError(client_fd, ERR_TOOMANYCHANNELS, join[0]);
-                    else // add client to channel (no key)
+                    if (_channels[join[0]].getKey().empty()) // no key
                     {
-                        _channels[join[0]].addClient(nick);
-                        std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
-                        send(client_fd, msg.c_str(), msg.size(), 0);
+                        if (_channels[join[0]].isChanMember(nick)) // client already in channel
+                            sendError(client_fd, ERR_TOOMANYCHANNELS, join[0]);
+                        else // add client to channel (no key)
+                        {
+                            _channels[join[0]].addMember(nick);
+                            std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
+                            send(client_fd, msg.c_str(), msg.size(), 0);
+                        }
                     }
-                }
-                else // key needed
-                {
-                    if (_channels[join[0]].getKey() == key) // key match add client
+                    else // key needed
                     {
-                        _channels[join[0]].addClient(nick);
-                        std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
-                        send(client_fd, msg.c_str(), msg.size(), 0);
+                        if (_channels[join[0]].getKey() == key) // key match add client
+                        {
+                            _channels[join[0]].addMember(nick);
+                            std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
+                            send(client_fd, msg.c_str(), msg.size(), 0);
+                        }
+                        else
+                            sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
                     }
-                    else
-                        sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
                 }
             }
         }
@@ -780,7 +789,19 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
                     else if (split[1] == "-o")
                         _channels[split[0]].removeChanOps(split[2]);
                     else if (split[1] == "+l")
+                    {
                         _channels[split[0]].setLimit(true);
+                        int value = std::stoi(split[2]);
+                        if (value < 0)
+                            sendError(client_fd, ERR_UNKNOWNMODE, "");
+                        else
+                        {
+                            if (split.size() == 3)
+                                _channels[split[0]].setLimitValue(value);
+                            else
+                                _channels[split[0]].setLimit(false);
+                        }
+                    }
                     else if (split[1] == "-l")
                         _channels[split[0]].setLimit(false);
                     else

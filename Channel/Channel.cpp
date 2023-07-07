@@ -16,10 +16,9 @@ bool Channel::isChanMember(std::string nick)
     return false;
 }
 
-void Channel::addClient(std::string nick)
+void Channel::addMember(std::string nick)
 {
     _members.push_back(nick);
-    removeInviteList(nick);
 }
 
 bool Channel::isChanOps(std::string nick)
