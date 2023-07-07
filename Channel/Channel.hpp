@@ -7,10 +7,11 @@ class Channel
 {
 private:
     std::string _name;
-    std::vector<std::string> _clients;
+    std::vector<std::string> _members;
     std::string _topic;
     std::string _key;
     std::vector<std::string> _chanOps;
+    std::vector<std::string> _inviteList;
     bool _inviteOnly;
     bool _topicRestriction;
     bool _limit; // TODO: implement limit
@@ -22,17 +23,23 @@ public:
     // Utils ---------------------------------------------------------------------
 
     bool isChanMember(std::string nick);
+
     void addClient(std::string nick);
+    void removeClient(std::string nick);
+
     bool isChanOps(std::string nick);
     void addChanOps(std::string nick);
     void removeChanOps(std::string nick);
-    void removeClient(std::string nick);
+
+    bool isInviteList(std::string nick);
+    void addInviteList(std::string nick);
+    void removeInviteList(std::string nick);
 
     // Getters -------------------------------------------------------------------
     std::string getName() const { return _name; }
     std::string getTopic() const { return _topic; }
     std::string getKey() const { return _key; }
-    std::vector<std::string> getClients() const { return _clients; }
+    std::vector<std::string> getClients() const { return _members; }
     bool getInviteOnly() const { return _inviteOnly; }
     bool getTopicRestriction() const { return _topicRestriction; }
     bool getLimit() const { return _limit; }

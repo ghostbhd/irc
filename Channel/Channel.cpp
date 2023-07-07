@@ -8,7 +8,7 @@ Channel::Channel(std::string name, std::string key, std::string chanOpsNick) : _
 
 bool Channel::isChanMember(std::string nick)
 {
-    for (std::vector<std::string>::iterator it = _clients.begin(); it != _clients.end(); it++)
+    for (std::vector<std::string>::iterator it = _members.begin(); it != _members.end(); it++)
     {
         if (*it == nick)
             return true;
@@ -18,7 +18,8 @@ bool Channel::isChanMember(std::string nick)
 
 void Channel::addClient(std::string nick)
 {
-    _clients.push_back(nick);
+    _members.push_back(nick);
+    removeInviteList(nick);
 }
 
 bool Channel::isChanOps(std::string nick)
@@ -34,11 +35,11 @@ bool Channel::isChanOps(std::string nick)
 
 void Channel::removeClient(std::string nick)
 {
-    for (std::vector<std::string>::iterator it = _clients.begin(); it != _clients.end(); it++)
+    for (std::vector<std::string>::iterator it = _members.begin(); it != _members.end(); it++)
     {
         if (*it == nick)
         {
-            _clients.erase(it);
+            _members.erase(it);
             return;
         }
     }
@@ -59,4 +60,31 @@ void Channel::removeChanOps(std::string nick)
 void Channel::addChanOps(std::string nick)
 {
     _chanOps.push_back(nick);
+}
+
+bool Channel::isInviteList(std::string nick)
+{
+    for (std::vector<std::string>::iterator it = _inviteList.begin(); it != _inviteList.end(); it++)
+    {
+        if (*it == nick)
+            return true;
+    }
+    return false;
+}
+
+void Channel::addInviteList(std::string nick)
+{
+    _inviteList.push_back(nick);
+}
+
+void Channel::removeInviteList(std::string nick)
+{
+    for (std::vector<std::string>::iterator it = _inviteList.begin(); it != _inviteList.end(); it++)
+    {
+        if (*it == nick)
+        {
+            _inviteList.erase(it);
+            break;
+        }
+    }
 }
