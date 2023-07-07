@@ -26,7 +26,7 @@ public:
     bool isChanMember(std::string nick);
 
     void addMember(std::string nick);
-    void removeClient(std::string nick);
+    void removeMember(std::string nick);
 
     bool isChanOps(std::string nick);
     void addChanOps(std::string nick);

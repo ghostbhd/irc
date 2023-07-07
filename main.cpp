@@ -33,4 +33,5 @@ int main(int ac, char **av)
  /part #chan
  whois
  CAP LS
+ QUIT
 */

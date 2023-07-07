@@ -32,7 +32,7 @@ bool Channel::isChanOps(std::string nick)
 }
 
 
-void Channel::removeClient(std::string nick)
+void Channel::removeMember(std::string nick)
 {
     for (std::vector<std::string>::iterator it = _members.begin(); it != _members.end(); it++)
     {

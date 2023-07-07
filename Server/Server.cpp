@@ -667,7 +667,7 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
                         }
                         else
                         {
-                            _channels[split[0]].removeClient(nick); // remove the target from the channel
+                            _channels[split[0]].removeMember(nick); // remove the target from the channel
                             if (split.size() == 2)                  // check if the command has a message
                             {
                                 std::string msg = ":" + _clients[client_fd].getNickname() + " KICK " + split[0] + " " + nick + "\n";
@@ -727,9 +727,12 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                     sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
                 else
                 {
-                    if (split.size() == 1)
+                    if (split.size() == 1) // check if the command has a message or not (if not send the topic)
                     {
-                        std::string msg = ":" + nick + " TOPIC " + split[0] + " :" + _channels[split[0]].getTopic() + "\n";
+                        // :server-name 332 <your-nickname> <channel-name> :<topic>
+
+                        std::string msg = ":" + _clients[client_fd].getHostname() + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+
                         send(client_fd, msg.c_str(), msg.size(), 0);
                     }
                     else
@@ -743,7 +746,10 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                             else
                             {
                                 _channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
-                                sendWelcomeRpl(client_fd, split[0], RPL_TOPIC, split[1]);
+                                // :server-name 332 <your-nickname> <channel-name> :<topic>
+
+                                std::string msg = ":" + _clients[client_fd].getHostname() + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+                                MsgToChannel(split[0], msg, client_fd);
                             }
                         }
                     }
