@@ -347,7 +347,7 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(401, " :No such nick/channel\r\n"));
     _errorMsg.insert(std::make_pair(407, " :Too many targets\r\n"));
     _errorMsg.insert(std::make_pair(403, " :No such channel\r\n"));
-    _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k)\r\n"));
+    _errorMsg.insert(std::make_pair(475, " :Cannot join channel (+k) - Bad channel key\r\n"));
     _errorMsg.insert(std::make_pair(473, " :Cannot join channel (+i)\r\n")); // new
     _errorMsg.insert(std::make_pair(405, " :You are already registred\r\n"));
     _errorMsg.insert(std::make_pair(482, " :You're not channel operator\r\n"));
@@ -366,46 +366,50 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     std::stringstream ss;
     ss << client_fd;
     ss >> fd_string;
+
+    std::string nick = _clients[client_fd].getNickname();
+
     if (error_code == 433)
         error = ":" + _hostName + " 433 * " + command + _errorMsg[error_code]; // :server-name 433 * your_nickname :Nickname is already in use.
     else if (error_code == 443)
-        error = _clients[client_fd].getNickname() + _errorMsg[error_code]; // your-nickname :is already on channel\r\n
+        error = nick + _errorMsg[error_code]; // your-nickname :is already on channel\r\n
     else if (error_code == 451)
         error = ":" + _hostName + " 451 " + command + _errorMsg[error_code]; //: irc.server.com 451 JOIN :You have not registered\r\n";
     else if (error_code == 461)
-        error = ":" + _hostName + " 461 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 461 your-nickname :Not enough parameters\r\n
+        error = ":" + _hostName + " 461 " + nick + _errorMsg[error_code]; // :server-name 461 your-nickname :Not enough parameters\r\n
     else if (error_code == 464)
-        error = fd_string + _errorMsg[error_code];
+        error = ":" + _hostName + " 464 " + nick + _errorMsg[error_code]; // :server-name 464 your-nickname :Password incorrect\r\n
+
     else if (error_code == 501)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 462)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 401)
-        error = ":" + _hostName + " 401 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 401 your-nickname :No such nick/channel\r\n
+        error = ":" + _hostName + " 401 " + nick + _errorMsg[error_code]; // :server-name 401 your-nickname :No such nick/channel\r\n
     else if (error_code == 407)
         error = fd_string + " " + _errorMsg[error_code];
     else if (error_code == 403)
-        error = ":" + _hostName + " 403 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 403 your-nickname :No such channel\r\n
+        error = ":" + _hostName + " 403 " + nick + _errorMsg[error_code]; // :server-name 403 your-nickname :No such channel\r\n
     else if (error_code == 475)
-        error = ":" + _hostName + " 475 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 475 your-nickname :Cannot join channel (+k)\r\n
+        error = ":" + _hostName + " 475 " + nick + " " + command + _errorMsg[error_code]; // :server-name 475 <your-nickname> <channel-name> :Cannot join channel (+k) - Bad channel key\r\n
     else if (error_code == 405)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 482)
-        error = ":" + _hostName + " 482 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 482 your-nickname :You're not channel operator\r\n
+        error = ":" + _hostName + " 482 " + nick + _errorMsg[error_code]; // :server-name 482 your-nickname :You're not channel operator\r\n
     else if (error_code == 442)
-        error = ":" + _hostName + " 442 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 442 your-nickname :You're not on that channel\r\n
+        error = ":" + _hostName + " 442 " + nick + _errorMsg[error_code]; // :server-name 442 your-nickname :You're not on that channel\r\n
     else if (error_code == 472)
-        error = ":" + _hostName + " 472 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 472 your-nickname :Unknown mode char to me\r\n
+        error = ":" + _hostName + " 472 " + nick + _errorMsg[error_code]; // :server-name 472 your-nickname :Unknown mode char to me\r\n
     else if (error_code == 421)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 411)
-        error = ":" + _hostName + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //: irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
+        error = ":" + _hostName + " 411 " + nick + _errorMsg[error_code]; //: irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
     else if (error_code == 404)
-        error = ":" + _hostName + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; //: irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
+        error = ":" + _hostName + " 404 " + nick + " " + command + _errorMsg[error_code]; //: irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
     else if (error_code == 473)
-        error = ":" + _hostName + " 473 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
+        error = ":" + _hostName + " 473 " + nick + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
     else if (error_code == 471)
-        error = ":" + _hostName + " 471 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
+        error = ":" + _hostName + " 471 " + nick + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
 
     std::cout << "Error: " << error << std::endl;
     send(client_fd, error.c_str(), error.size(), 0);
@@ -527,54 +531,68 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
     std::vector<std::string> join = splitWithChar(cleanLine, ' '); // split line with spaces
 
     std::string nick = _clients[client_fd].getNickname(); // get client nickname
-    if (!isChanNameValid(join[0]))                        // channel name must be valid
-        sendError(client_fd, ERR_NOSUCHCHANNEL, join[0]);
+
+    std::string chanName = join[0]; // get channel name
+
+    if (!isChanNameValid(chanName))                        // channel name must be valid
+        sendError(client_fd, ERR_NOSUCHCHANNEL, chanName);
     else
     {
         std::string key = "";
         if (join.size() > 1)
-            key = cleanLine.substr(cleanLine.find(join[1], join[0].length())); // get key
-        if (!isChannelExist(join[0]))                                          // channel not found create it and add client
+            key = cleanLine.substr(cleanLine.find(join[1], chanName.length())); // get key
+        std::cout << "key of channel [" << chanName << "] is: {" << key << "}\n";
+        if (!isChannelExist(chanName))                                          // channel not found create it and add client
         {
-            Channel newChannel(join[0], key, nick);                // create new channel (key, name, chanOps)
-            _channels.insert(std::make_pair(join[0], newChannel)); // add channel to map
-            _channels[join[0]].addMember(nick);                    // add chanops to channel as client
-            std::string msg = ":" + nick + " JOIN " + join[0] + "\n";
+            Channel newChannel(chanName, key, nick);                // create new channel (key, name, chanOps)
+            _channels.insert(std::make_pair(chanName, newChannel)); // add channel to map
+            _channels[chanName].addMember(nick);                    // add chanops to channel as client
+            std::string msg = ":" + nick + " JOIN " + chanName + "\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
 
-            std::cout << "New channel created : " << join[0] << " by " << nick << std::endl;
+            std::cout << "New channel created : " << chanName << " by " << nick << std::endl;
         }
         else // channel found add client to it
         {
-            if (_channels[join[0]].getInviteOnly() && !_channels[join[0]].isInviteList(nick))
-                sendError(client_fd, ERR_INVITEONLYCHAN, join[0]);
+            if (_channels[chanName].getInviteOnly() && !_channels[chanName].isInviteList(nick)) // channel is invite only and client is not in invite list
+                sendError(client_fd, ERR_INVITEONLYCHAN, chanName);
             else
             {
-                if (_channels[join[0]].getLimit() && _channels[join[0]].getMembers().size() >= _channels[join[0]].getLimit()) // channel is full
-                    sendError(client_fd, ERR_CHANNELISFULL, join[0]);
+                if (_channels[chanName].getLimit() && _channels[chanName].getMembers().size() >= _channels[chanName].getLimit()) // channel is full
+                    sendError(client_fd, ERR_CHANNELISFULL, chanName);
                 else
                 {
-                    if (_channels[join[0]].getKey().empty()) // no key
+                    if (_channels[chanName].getKey().empty()) // no key
                     {
-                        if (_channels[join[0]].isChanMember(nick)) // client already in channel
-                            sendError(client_fd, ERR_TOOMANYCHANNELS, join[0]);
+                        if (_channels[chanName].isChanMember(nick)) // client already in channel
+                            sendError(client_fd, ERR_TOOMANYCHANNELS, chanName);
                         else // add client to channel (no key)
                         {
-                            _channels[join[0]].addMember(nick);
-                            std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
+                            _channels[chanName].addMember(nick);
+                            std::string msg = ":" + nick + " JOIN " + chanName + "\r\n";
                             send(client_fd, msg.c_str(), msg.size(), 0);
+            
+                            // ======> send join msg to all channel ops
+                            // :<join-nickname>!<join-username>@<join-hostname> JOIN <channel-name>
+                            msg = ":" + nick + "!~h@" + _hostName + " JOIN " + chanName + "\r\n";
+                            for (std::vector<std::string>::iterator it = _channels[chanName].getChanOps().begin(); it != _channels[chanName].getMembers().end(); ++it)
+                            {
+                                int fd = findClientFdByNick(*it);
+                                if (fd != -1)
+                                    send(fd, msg.c_str(), msg.size(), 0);
+                            }
                         }
                     }
                     else // key needed
                     {
-                        if (_channels[join[0]].getKey() == key) // key match add client
+                        if (_channels[chanName].getKey() == key) // key match add client
                         {
-                            _channels[join[0]].addMember(nick);
-                            std::string msg = ":" + nick + " JOIN " + join[0] + "\r\n";
+                            _channels[chanName].addMember(nick);
+                            std::string msg = ":" + nick + " JOIN " + chanName + "\r\n";
                             send(client_fd, msg.c_str(), msg.size(), 0);
                         }
                         else
-                            sendError(client_fd, ERR_BADCHANNELKEY, join[0]);
+                            sendError(client_fd, ERR_BADCHANNELKEY, chanName);
                     }
                 }
             }
@@ -722,7 +740,6 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
     {
-        std::string nick = nick;
         if (!isChanNameValid(split[0]))
             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
         else

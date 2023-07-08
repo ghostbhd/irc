@@ -46,6 +46,7 @@ public:
     bool getTopicRestriction() const { return _topicRestriction; }
     bool getLimit() const { return _limit; }
     int getLimitValue() const { return _limitValue; }
+    std::vector<std::string> getChanOps() const { return _chanOps; }
 
     // Setters -------------------------------------------------------------------
     void setName(std::string name) { _name = name; }
