@@ -50,6 +50,10 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         exit(EXIT_FAILURE);
     }
     std::cout << "Server launched !\n";
+    
+    char host[1024];
+    gethostname(host, 1024);
+    _hostName = std::string(host);
 }
 
 // Main functions ---------------------------------------------------------------------------------------
@@ -111,8 +115,8 @@ void Server::ClientRecv(int client_fd)
 {
     std::vector<char> buffer(5000);
     ssize_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
-    // std::cout << "Client " << client_fd << " sent :\n"
-    //           << buffer.data() << std::endl;
+    std::cout << "Client " << client_fd << " sent :\n"
+              << buffer.data() << "-----------------------------------------------\n\n";
     if (!ReadingFromC)
     {
         std::cout << "Client " << client_fd << " disconnected!\n";
@@ -194,7 +198,7 @@ void Server::ClientRecv(int client_fd)
                 else
                     sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
 
-                //std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
+                // std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
 
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
@@ -293,7 +297,7 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 {
     std::string nick = _clients[client_fd].getNickname();
     // [channel_name] <sender_nick> message_content
-    std::string message = ":" + _clients[client_fd].getNickname() + "!~h@" + _clients[client_fd].getHostname() + " PRIVMSG " + chanName + " :" + msg + "\n";
+    std::string message = ":" + _clients[client_fd].getNickname() + "!~h@" + _hostName + " PRIVMSG " + chanName + " :" + msg + "\n";
     ;
     std::vector<std::string> clients = _channels[chanName].getMembers();
     for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
@@ -315,7 +319,7 @@ void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::stri
 
     // :server-name 001 your_nickname :Welcome to the IRC Network, your_nickname!user@host
 
-    std::string message = ":" + _clients[client_fd].getHostname() + " 001 " + nick + " :Welcome to the IRC Network, " + nick + "!" + _clients[client_fd].getUsername() + "@" + _clients[client_fd].getHostname() + "\r\n";
+    std::string message = ":" + _hostName + " 001 " + nick + " :Welcome to the IRC Network, " + nick + "!" + _clients[client_fd].getUsername() + "@" + _hostName + "\r\n";
     std::string msg = fd_str + " :You are now an IRC operator\r\n";
     std::string inv = fd_str + " has been invited " + nick + " to " + Channel + "\r\n";
     std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\r\n";
@@ -363,13 +367,13 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     ss << client_fd;
     ss >> fd_string;
     if (error_code == 433)
-        error = ":" + _clients[client_fd].getHostname() + " 433 * " + command + _errorMsg[error_code]; // :server-name 433 * your_nickname :Nickname is already in use.
+        error = ":" + _hostName + " 433 * " + command + _errorMsg[error_code]; // :server-name 433 * your_nickname :Nickname is already in use.
     else if (error_code == 443)
         error = _clients[client_fd].getNickname() + _errorMsg[error_code]; // your-nickname :is already on channel\r\n
     else if (error_code == 451)
-        error = ":" + _clients[client_fd].getHostname() + " 451 " + command + _errorMsg[error_code]; //:irc.server.com 451 JOIN :You have not registered\r\n";
+        error = ":" + _hostName + " 451 " + command + _errorMsg[error_code]; //: irc.server.com 451 JOIN :You have not registered\r\n";
     else if (error_code == 461)
-        error = ":" + _clients[client_fd].getHostname() + " 461 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 461 your-nickname :Not enough parameters\r\n
+        error = ":" + _hostName + " 461 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 461 your-nickname :Not enough parameters\r\n
     else if (error_code == 464)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 501)
@@ -377,31 +381,31 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
     else if (error_code == 462)
         error = fd_string + _errorMsg[error_code];
     else if (error_code == 401)
-        error = ":" + _clients[client_fd].getHostname() + " 401 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 401 your-nickname :No such nick/channel\r\n
+        error = ":" + _hostName + " 401 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 401 your-nickname :No such nick/channel\r\n
     else if (error_code == 407)
         error = fd_string + " " + _errorMsg[error_code];
     else if (error_code == 403)
-        error = ":" + _clients[client_fd].getHostname() + " 403 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 403 your-nickname :No such channel\r\n
+        error = ":" + _hostName + " 403 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 403 your-nickname :No such channel\r\n
     else if (error_code == 475)
-        error = ":" + _clients[client_fd].getHostname() + " 475 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 475 your-nickname :Cannot join channel (+k)\r\n
+        error = ":" + _hostName + " 475 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 475 your-nickname :Cannot join channel (+k)\r\n
     else if (error_code == 405)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 482)
-        error = ":" + _clients[client_fd].getHostname() + " 482 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 482 your-nickname :You're not channel operator\r\n
+        error = ":" + _hostName + " 482 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 482 your-nickname :You're not channel operator\r\n
     else if (error_code == 442)
-        error = ":" + _clients[client_fd].getHostname() + " 442 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 442 your-nickname :You're not on that channel\r\n
+        error = ":" + _hostName + " 442 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 442 your-nickname :You're not on that channel\r\n
     else if (error_code == 472)
-        error = ":" + _clients[client_fd].getHostname() + " 472 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 472 your-nickname :Unknown mode char to me\r\n
+        error = ":" + _hostName + " 472 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; // :server-name 472 your-nickname :Unknown mode char to me\r\n
     else if (error_code == 421)
         error = fd_string + " " + command + _errorMsg[error_code];
     else if (error_code == 411)
-        error = ":" + _clients[client_fd].getHostname() + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //: irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
+        error = ":" + _hostName + " 411 " + _clients[client_fd].getNickname() + _errorMsg[error_code]; //: irc.server.com 411 YourNickname :No recipient given (PRIVMSG)
     else if (error_code == 404)
-        error = ":" + _clients[client_fd].getHostname() + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; //: irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
+        error = ":" + _hostName + " 404 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; //: irc.server.com ERR_CANNOTSENDTOCHAN YourNickname #channel :Cannot send to channel
     else if (error_code == 473)
-        error = ":" + _clients[client_fd].getHostname() + " 473 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
+        error = ":" + _hostName + " 473 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
     else if (error_code == 471)
-        error = ":" + _clients[client_fd].getHostname() + " 471 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
+        error = ":" + _hostName + " 471 " + _clients[client_fd].getNickname() + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
 
     std::cout << "Error: " << error << std::endl;
     send(client_fd, error.c_str(), error.size(), 0);
@@ -509,7 +513,7 @@ void Server::privmsg(int client_fd, std::string cleanLine)
                 {
                     // <sender> <message>
                     // std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
-                    std::string msg = ":" + _clients[client_fd].getNickname() + "!~h@" + _clients[client_fd].getHostname() + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+                    std::string msg = ":" + _clients[client_fd].getNickname() + "!~h@" + _hostName + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
                     send(fd, msg.c_str(), msg.size(), 0);
                 }
             }
@@ -734,7 +738,7 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                     {
                         // :server-name 332 <your-nickname> <channel-name> :<topic>
 
-                        std::string msg = ":" + _clients[client_fd].getHostname() + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+                        std::string msg = ":" + _hostName + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
 
                         send(client_fd, msg.c_str(), msg.size(), 0);
                     }
@@ -749,10 +753,11 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                             else
                             {
                                 _channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
-                                // :server-name 332 <your-nickname> <channel-name> :<topic>
 
-                                std::string msg = ":" + _clients[client_fd].getHostname() + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+                                // :server-name 332 <your-nickname> <channel-name> :<topic>
+                                std::string msg = ":" + _hostName + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
                                 MsgToChannel(split[0], msg, client_fd);
+                                send(client_fd, msg.c_str(), msg.size(), 0);
                             }
                         }
                     }
@@ -886,7 +891,7 @@ void Server::partCmd(int client_fd, std::string cleanLine)
     if (!isChanNameValid(split[0]))
         sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
     else if (!isChannelExist(split[0]) && !_channels[split[0]].isChanMember(_clients[client_fd].getNickname()))
-            sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
+        sendError(client_fd, ERR_NOTONCHANNEL, split[0]);
     else
     {
         _channels[split[0]].removeMember(_clients[client_fd].getNickname());
@@ -917,7 +922,7 @@ void Server::botCmd(int client_fd, std::string cleanLine)
             std::string port;
             ss << getPort();
             ss >> port;
-            std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _clients[client_fd].getHostname() + "\n" + "Port: " + port + "\n" + "Server: IRC server\n";
+            std::string msg = ": Infos of " + _clients[client_fd].getNickname() + "\n" + "Host: " + _hostName + "\n" + "Port: " + port + "\n" + "Server: IRC server\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
         }
         else if (split[0] == "Time")

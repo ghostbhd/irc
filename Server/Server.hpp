@@ -28,6 +28,7 @@ private:
     std::string _adminName;
     std::string _adminPass;
 
+    std::string _hostName;
     Server();
 
 public:
@@ -35,7 +36,7 @@ public:
     Server(int port, std::string password);
     ~Server();
 
-    // Getters -------------------------------------------------------------------
+    // Getters and Setters -------------------------------------------------------
     std::string getPass() const;
     int getSock_fd() const;
     int getPort() const;
