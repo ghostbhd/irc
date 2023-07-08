@@ -716,12 +716,13 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 void Server::topicCmd(int client_fd, std::string cleanLine)
 {
     std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+    std::string nick = _clients[client_fd].getNickname();
 
     if (split.size() < 1)
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
     else
     {
-        std::string nick = _clients[client_fd].getNickname();
+        std::string nick = nick;
         if (!isChanNameValid(split[0]))
             sendError(client_fd, ERR_NOSUCHCHANNEL, split[0]);
         else
@@ -737,8 +738,7 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                     if (split.size() == 1) // check if the command has a message or not (if not send the topic)
                     {
                         // :server-name 332 <your-nickname> <channel-name> :<topic>
-
-                        std::string msg = ":" + _hostName + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+                        std::string msg = ":" + _hostName + " 332 " + nick + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
 
                         send(client_fd, msg.c_str(), msg.size(), 0);
                     }
@@ -755,7 +755,7 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
                                 _channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
 
                                 // :server-name 332 <your-nickname> <channel-name> :<topic>
-                                std::string msg = ":" + _hostName + " 332 " + _clients[client_fd].getNickname() + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+                                std::string msg = ":" + _hostName + " 332 " + nick + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
                                 MsgToChannel(split[0], msg, client_fd);
                                 send(client_fd, msg.c_str(), msg.size(), 0);
                             }
