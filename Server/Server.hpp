@@ -10,6 +10,7 @@
 #define RPL_INVITING 341
 #define RPL_TOPIC 332
 
+
 class Server
 {
 private:
@@ -50,6 +51,7 @@ public:
     std::string deleteNewLine(std::string str);
     std::vector<std::string> splitWithChar(std::string str, char c);
     bool isChannelExist(std::string name);
+    void closeClient(int client_fd);
 
     // Client ********************************
     int findClientFdByNick(std::string nick);
@@ -61,7 +63,7 @@ public:
     void MsgToChannel(std::string chanName, std::string msg, int client_fd);
 
     // RPLY ---------------------------------------------------------------------
-    void sendWelcomeRpl(int client_fd, std::string nick, int code, std::string param);
+    void sendWelcomeRpl(int client_fd, std::string nick);
 
     // Errors -------------------------------------------------------------------
     void initErrorMsg();
@@ -80,6 +82,8 @@ public:
     void pingCmd(int client_fd, std::string cleanLine);
     void noticeCmd(int client_fd, std::string cleanLine);
     void partCmd(int client_fd, std::string cleanLine);
+    void quitCmd(int client_fd, std::string cleanLine);
+    void killCmd(int client_fd, std::string cleanLine);
 };
 
 #endif

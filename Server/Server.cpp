@@ -21,12 +21,12 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
 
     memset(&_sockaddr, 0, sizeof(_sockaddr)); // setting the memory to 0;
 
-    this->_sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
+    _sock_fd = socket(AF_INET, SOCK_STREAM, 0); // AF_INET=> IPV4, SOCK_STREAM=>TCP
     _sockaddr.sin_family = AF_INET;
     _sockaddr.sin_addr.s_addr = INADDR_ANY;
-    _sockaddr.sin_port = htons(this->_port);
+    _sockaddr.sin_port = htons(_port);
 
-    if (this->_sock_fd < 0)
+    if (_sock_fd < 0)
     {
         std::cerr << "Cannot create socket!\n";
         exit(EXIT_FAILURE);
@@ -37,53 +37,51 @@ Server::Server(int port, std::string password) : _pass(password), _port(port)
         std::cerr << "Cannot reuse the address\n";
         exit(EXIT_FAILURE);
     }
-    int binding = bind(this->_sock_fd, (struct sockaddr *)&_sockaddr, sizeof(_sockaddr));
+    int binding = bind(_sock_fd, (struct sockaddr *)&_sockaddr, sizeof(_sockaddr));
     if (binding < 0) // struct used to specify the @ assigned to the sock
     {
         std::cerr << "Server cannot bind to the address/port \n";
         exit(EXIT_FAILURE);
     }
-    int listening = listen(this->_sock_fd, 100);
+    int listening = listen(_sock_fd, 100);
     if (listening < 0) // marks a socket as passive, holds at most 100 connections
     {
         std::cerr << "Server cannot listen on socket\n";
         exit(EXIT_FAILURE);
     }
     std::cout << "Server launched !\n";
-    
+
     char host[1024];
     gethostname(host, 1024);
     _hostName = std::string(host);
+
+    pollfd server_poll;
+    memset(&server_poll, 0, sizeof(server_poll));
+
+    server_poll.fd = _sock_fd;
+    server_poll.events = POLLIN;
+
+    _poll_vc.push_back(server_poll);
+    initErrorMsg();
 }
 
 // Main functions ---------------------------------------------------------------------------------------
 void Server::start()
 {
-    pollfd server_poll;
-    memset(&server_poll, 0, sizeof(server_poll));
-
-    server_poll.fd = this->_sock_fd;
-    server_poll.events = POLLIN;
-
-    this->_poll_vc.push_back(server_poll);
-    initErrorMsg();
-    while (1)
+    if (poll(_poll_vc.data(), _poll_vc.size(), 0) < 0)
     {
-        if (poll(_poll_vc.data(), _poll_vc.size(), 0) < 0)
+        std::cerr << "Cannot connect with multiple clients\n";
+        exit(EXIT_FAILURE);
+    }
+    for (unsigned long i = 0; i < _poll_vc.size(); i++)
+    {
+        pollfd &current = _poll_vc[i];
+        if (current.revents & POLLIN)
         {
-            std::cerr << "Cannot connect with multiple clients\n";
-            exit(EXIT_FAILURE);
-        }
-        for (unsigned long i = 0; i < _poll_vc.size(); i++)
-        {
-            pollfd &current = _poll_vc[i];
-            if (current.revents & POLLIN)
-            {
-                if (current.fd == _sock_fd)
-                    newClient();
-                else
-                    ClientRecv(current.fd);
-            }
+            if (current.fd == _sock_fd)
+                newClient();
+            else
+                ClientRecv(current.fd);
         }
     }
 }
@@ -125,8 +123,18 @@ void Server::ClientRecv(int client_fd)
         close(client_fd);
     }
 
+    if (buffer[ReadingFromC - 1] != '\n')
+    {
+        _clients[client_fd].setBuffer(buffer.data());
+        return;
+    }
+    else
+        _clients[client_fd].setBuffer(buffer.data());
+
     // Getting the line from the buffer and deleting the \n and \r
-    std::vector<std::string> split = splitWithChar(buffer.data(), '\n');
+    std::vector<std::string> split = splitWithChar(_clients[client_fd].getBuffer(), '\n');
+    _clients[client_fd].eraseBuffer();
+
     for (std::vector<std::string>::iterator it = split.begin(); it != split.end(); it++)
     {
         std::string CleanLine = deleteNewLine(*it);
@@ -202,7 +210,7 @@ void Server::ClientRecv(int client_fd)
 
                 if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
                 {
-                    sendWelcomeRpl(client_fd, _clients[client_fd].getNickname(), RPL_WELCOMINGCODE, "");
+                    sendWelcomeRpl(client_fd, _clients[client_fd].getNickname());
                     std::cout << "Client [" << _clients[client_fd].getNickname() << "] is now registered\n";
                 }
             }
@@ -254,6 +262,20 @@ bool Server::isChannelExist(std::string name)
     }
     return false;
 }
+
+void Server::closeClient(int client_fd)
+{
+    // receive part for all the channels the client is in
+    for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); it++)
+    {
+        if (it->second.isChanMember(_clients[client_fd].getNickname()))
+        {
+            partCmd(client_fd, it->first);
+        }
+    }
+    close(client_fd);
+}
+
 // Client ****************************************
 int Server::findClientFdByNick(std::string nick)
 {
@@ -310,28 +332,12 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 }
 
 // Send Replay ------------------------------------------------------------------------------------------
-void Server::sendWelcomeRpl(int client_fd, std::string nick, int code, std::string Channel)
+void Server::sendWelcomeRpl(int client_fd, std::string nick)
 {
-    std::stringstream cl_fd;
-    std::string fd_str;
-    cl_fd << client_fd;
-    cl_fd >> fd_str;
-
     // :server-name 001 your_nickname :Welcome to the IRC Network, your_nickname!user@host
-
-    std::string message = ":" + _hostName + " 001 " + nick + " :Welcome to the IRC Network, " + nick + "!" + _clients[client_fd].getUsername() + "@" + _hostName + "\r\n";
-    std::string msg = fd_str + " :You are now an IRC operator\r\n";
-    std::string inv = fd_str + " has been invited " + nick + " to " + Channel + "\r\n";
-    std::string tpc = fd_str + " this channel " + nick + " is using the current topic " + Channel + "\r\n";
-
-    if (code == 001)
-        send(client_fd, message.c_str(), message.size(), 0);
-    else if (code == 381)
-        send(client_fd, msg.c_str(), msg.size(), 0);
-    else if (code == 341)
-        send(client_fd, inv.c_str(), inv.size(), 0);
-    else if (code == 332)
-        send(client_fd, tpc.c_str(), tpc.size(), 0);
+    std::string username = _clients[client_fd].getUsername();
+    std::string message = ":" + _hostName + " 001 " + nick + " :Welcome to the IRC Network, " + nick + "!" + username + "@" + _hostName + "\r\n";
+    send(client_fd, message.c_str(), message.size(), 0);
 }
 
 // Error handling ---------------------------------------------------------------------------------------
@@ -357,6 +363,7 @@ void Server::initErrorMsg()
     _errorMsg.insert(std::make_pair(411, " :No recipient given\r\n"));
     _errorMsg.insert(std::make_pair(404, " :Cannot send to channel\r\n"));
     _errorMsg.insert(std::make_pair(471, " :Cannot join channel (+l)\r\n"));
+    _errorMsg.insert(std::make_pair(481, " :Permission Denied - You do not have the necessary privileges\r\n"));
 }
 
 void Server::sendError(int client_fd, int error_code, std::string command) // need to add channel name to error msg
@@ -410,23 +417,11 @@ void Server::sendError(int client_fd, int error_code, std::string command) // ne
         error = ":" + _hostName + " 473 " + nick + " " + command + _errorMsg[error_code]; // :server-name 473 <your-nickname> <channel-name> :Cannot join channel (+i)
     else if (error_code == 471)
         error = ":" + _hostName + " 471 " + nick + " " + command + _errorMsg[error_code]; // :server-name 471 <your-nickname> <channel-name> :Cannot join channel (+l)
+    else if (error_code == 481) 
+        error = ":" + _hostName + " 481 " + nick + _errorMsg[error_code]; // :server-name 481 nickname :Permission Denied - You do not have the necessary privileges
 
     std::cout << "Error: " << error << std::endl;
     send(client_fd, error.c_str(), error.size(), 0);
-}
-
-// Destructor -------------------------------------------------------------------------------------------
-Server::~Server()
-{
-    // close all fd
-    std::map<int, Client>::iterator it = _clients.begin();
-    while (it != _clients.end())
-    {
-        close(it->first);
-        it++;
-    }
-    close(_sock_fd);
-    std::cout << "Server is OFF !\n";
 }
 
 // Commands ---------------------------------------------------------------------------------------------
@@ -456,6 +451,10 @@ void Server::mainCommands(int client_fd, std::string cleanLine, std::string cmd)
         partCmd(client_fd, cleanLine);
     else if (cmd == "WHOIS")
         return;
+    else if (cmd == "QUIT")
+        quitCmd(client_fd, cleanLine);
+    else if (cmd == "KILL" || cmd == "kill")
+        killCmd(client_fd, cleanLine);
     else
         sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 }
@@ -471,8 +470,10 @@ void Server::operCmd(int client_fd, std::string cleanLine)
         if (oper[0] == _adminName && oper[1] == _adminPass)
         {
             _clients[client_fd].setOperator(true);
-            // send oper RPL
-            sendWelcomeRpl(client_fd, "", RPL_AWAY, "");
+            // :server-name MODE <your-nickname> :+o
+
+            std::string msg = ":" + _hostName + " MODE " + _clients[client_fd].getNickname() + " :+o\r\n";
+            send(client_fd, msg.c_str(), msg.size(), 0);
         }
         else
             sendError(client_fd, ERR_PASSWDMISMATCH, cleanLine);
@@ -534,19 +535,20 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
 
     std::string chanName = join[0]; // get channel name
 
-    if (!isChanNameValid(chanName))                        // channel name must be valid
+    if (!isChanNameValid(chanName)) // channel name must be valid
         sendError(client_fd, ERR_NOSUCHCHANNEL, chanName);
     else
     {
         std::string key = "";
         if (join.size() > 1)
             key = cleanLine.substr(cleanLine.find(join[1], chanName.length())); // get key
-        std::cout << "key of channel [" << chanName << "] is: {" << key << "}\n";
-        if (!isChannelExist(chanName))                                          // channel not found create it and add client
+
+        if (!isChannelExist(chanName)) // channel not found create it and add client
         {
             Channel newChannel(chanName, key, nick);                // create new channel (key, name, chanOps)
             _channels.insert(std::make_pair(chanName, newChannel)); // add channel to map
             _channels[chanName].addMember(nick);                    // add chanops to channel as client
+
             std::string msg = ":" + nick + " JOIN " + chanName + "\n";
             send(client_fd, msg.c_str(), msg.size(), 0);
 
@@ -568,18 +570,24 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
                             sendError(client_fd, ERR_TOOMANYCHANNELS, chanName);
                         else // add client to channel (no key)
                         {
-                            _channels[chanName].addMember(nick);
-                            std::string msg = ":" + nick + " JOIN " + chanName + "\r\n";
-                            send(client_fd, msg.c_str(), msg.size(), 0);
-            
-                            // ======> send join msg to all channel ops
-                            // :<join-nickname>!<join-username>@<join-hostname> JOIN <channel-name>
-                            msg = ":" + nick + "!~h@" + _hostName + " JOIN " + chanName + "\r\n";
-                            for (std::vector<std::string>::iterator it = _channels[chanName].getChanOps().begin(); it != _channels[chanName].getMembers().end(); ++it)
+                            if (!key.empty())
+                                sendError(client_fd, ERR_BADCHANNELKEY, chanName);
+                            else
                             {
-                                int fd = findClientFdByNick(*it);
-                                if (fd != -1)
-                                    send(fd, msg.c_str(), msg.size(), 0);
+
+                                _channels[chanName].addMember(nick);
+                                std::string msg = ":" + nick + " JOIN " + chanName + "\r\n";
+                                send(client_fd, msg.c_str(), msg.size(), 0);
+
+                                // ======> send join msg to all channel ops
+                                // :<join-nickname>!<join-username>@<join-hostname> JOIN <channel-name>
+                                msg = ":" + nick + "!" + _clients[client_fd].getUsername() + "@" + _hostName + " JOIN " + chanName + "\r\n";
+                                for (std::vector<std::string>::iterator it = _channels[chanName].getChanOps().begin(); it != _channels[chanName].getChanOps().end(); ++it)
+                                {
+                                    int fd = findClientFdByNick(*it);
+                                    if (fd != -1)
+                                        send(fd, msg.c_str(), msg.size(), 0);
+                                }
                             }
                         }
                     }
@@ -958,7 +966,94 @@ void Server::botCmd(int client_fd, std::string cleanLine)
     }
 }
 
+// QUIT >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::quitCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+
+    if (split.size() > 1)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        if (split[0][0] != ':')
+            sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+        else
+        {
+            // :<quitting-nickname>!<quitting-username>@<quitting-hostname> QUIT :<quit-message>
+            if (_channels.size())
+            {
+                std::string msg = ":" + _clients[client_fd].getNickname() + "!" + _clients[client_fd].getUsername() + "@" + _hostName + " QUIT :" + cleanLine + "\r\n";
+                for (std::map<std::string, Channel>::iterator it = _channels.begin(); it != _channels.end(); ++it) // send msg to all channels where client is member
+                {
+                    for (std::vector<std::string>::iterator it2 = it->second.getMembers().begin(); it2 != it->second.getMembers().end(); ++it2)
+                    {
+                        if (*it2 == _clients[client_fd].getNickname())
+                        {
+                            MsgToChannel(it->first, msg, client_fd);
+                            _channels[it->first].removeMember(_clients[client_fd].getNickname());
+                            break;
+                        }
+                    }
+                }
+            }
+            close(client_fd);
+            _clients.erase(client_fd);
+        }
+    }
+}
+
+// KILL >>>>>>>>>>>>>>>>>>>>>>>>
+void Server::killCmd(int client_fd, std::string cleanLine)
+{
+    std::vector<std::string> split = splitWithChar(cleanLine, ' ');
+
+    if (split.size() < 2)
+        sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+    else
+    {
+        std::string targetNick = split[0];
+
+        if (!_clients[client_fd].getOperator())
+            sendError(client_fd, ERR_NOPRIVILEGES, cleanLine);
+        else
+        {
+            if (split[1][0] != ':')
+                sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
+            else
+            {
+                int fd = findClientFdByNick(split[0]);
+                if (fd == -1)
+                    sendError(client_fd, ERR_NOSUCHNICK, split[1]);
+                else
+                {
+                    std::string reason = cleanLine.substr(cleanLine.find(':', split[0].size()) + 1);
+                    std::string nick = _clients[client_fd].getNickname();
+                    
+                    // to operator => :server-name 361 operator-nickname target-nickname :User has been killed (reason)
+                    std::string msgToOp = ":" + _hostName + " 361 " + nick + " " + split[0] + " :User has been killed (" + reason + ")\r\n";
+                    send(client_fd, msgToOp.c_str(), msgToOp.size(), 0);
+
+                    // to target => :operator-nickname KILL target-nickname :You have been killed (reason)
+                    std::string msgToTarget = ":" + nick + " KILL " + split[0] + " :You have been killed (" + reason + ")\r\n";
+                    send(fd, msgToTarget.c_str(), msgToTarget.size(), 0);
+                    closeClient(fd);
+                }
+            }
+        }
+    }
+}
+
 // Getters ----------------------------------------------------------------------------------------------
-int Server::getPort() const { return (this->_port); }         // _port
-int Server::getSock_fd() const { return (this->_sock_fd); }   // _sock_fd
-std::string Server::getPass() const { return (this->_pass); } // _pass
+int Server::getPort() const { return (_port); }         // _port
+int Server::getSock_fd() const { return (_sock_fd); }   // _sock_fd
+std::string Server::getPass() const { return (_pass); } // _pass
+
+// Destructor -------------------------------------------------------------------------------------------
+Server::~Server()
+{
+    std::map<int, Client>::iterator it = _clients.begin();
+    while (++it != _clients.end())
+        closeClient(it->first);
+    close(_sock_fd);
+    std::cout << "Server is OFF !\n";
+}

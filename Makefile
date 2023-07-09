@@ -8,7 +8,7 @@ CONTROL = @stty -echoctl
 RM = @rm -rf
 AR = @ar -rc
 NAME = ircserv
-sanitize = -fsanitize=address -static-libasan -g3
+sanitize = -fsanitize=address -g3
 
 # Colors ----------------------------------------------
 RESET := "\x1b[0m"
