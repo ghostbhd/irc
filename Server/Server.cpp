@@ -886,7 +886,7 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
 // PING >>>>>>>>>>>>>>>>>>>>>>>>
 void Server::pingCmd(int client_fd, std::string cleanLine)
 {
-    std::string msg = ":PONG " + _hostName + " :" + cleanLine + "\n";
+    std::string msg = ":PONG " + _hostName + " :" + cleanLine + "\r\n";
     send(client_fd, msg.c_str(), msg.size(), 0);
 }
 
