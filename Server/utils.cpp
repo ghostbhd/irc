@@ -54,8 +54,11 @@ void Server::closeClient(int client_fd)
 			}
 		}
 	}
-	_clients.erase(client_fd);
 	close(client_fd);
+	std::map<int, Client>::iterator it = _clients.find(client_fd);
+	if (it != _clients.end())
+		_clients.erase(it);
+	std::cout << "Client " << client_fd << " is now deleted\n";
 }
 
 // Client ****************************************

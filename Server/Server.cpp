@@ -239,9 +239,12 @@ std::string Server::getPass() const { return (_pass); } // _pass
 Server::~Server()
 {
 	std::cout << "Server is shutting down...\n";
-	if (_clients.size())
-		for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); ++it)
-			closeClient(it->first);
+	while (!_clients.empty())
+	{
+		std::map<int, Client>::iterator it = _clients.begin();
+		closeClient(it->first);
+	}
+	
 	close(_sock_fd);
 	std::cout << "Server is OFF !\n";
 }

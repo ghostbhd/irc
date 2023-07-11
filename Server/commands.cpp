@@ -249,42 +249,31 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 			else
 			{
 				if (split.size() < 3) // check if the command has enough parameters
-				{
 					sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
-				}
 				else
 				{
-					std::string nick = split[1];
-					int targetFD = findClientFdByNick(nick);
-					std::cout << "targetFD: " << targetFD << " targetNick: {" << nick << "}" << std::endl;
+					std::string kicked_nick = split[1];
+					int targetFD = findClientFdByNick(kicked_nick);
 					if (targetFD == -1)
 					{
-						sendError(client_fd, ERR_NOSUCHNICK, nick);
+						sendError(client_fd, ERR_NOSUCHNICK, kicked_nick);
 						std::cout << "channel name not valid" << std::endl;
 					}
 					else
 					{
-						if (!_channels[split[0]].isChanMember(nick)) // check if the target is in the channel
-							sendError(client_fd, ERR_NOTONCHANNEL, nick);
+						if (!_channels[split[0]].isChanMember(kicked_nick)) // check if the target is in the channel
+							sendError(client_fd, ERR_NOTONCHANNEL, kicked_nick);
 						else
 						{
-							_channels[split[0]].removeMember(nick); // remove the target from the channel
-							if (split[2][0] != ':')					// check if the message is valid
+							if (split[2][0] != ':')	// check if the message is valid
 								sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 							else
 							{
-								if (nick[1] == '\0') // check if the message is empty
-								{
-									std::string msg = ":" + _clients[client_fd].getNickname() + " KICK " + split[0] + " " + nick + "\n";
-									send(client_fd, msg.c_str(), msg.size(), 0);
-								}
-								else // send the message to the target
-								{
-									std::string msg = ": YOU Eject " + nick + " from " + split[0] + "\n";
-									send(client_fd, msg.c_str(), msg.size(), 0);
-									msg = ":" + _clients[targetFD].getNickname() + " you got kicked from " + split[0] + " " + cleanLine.substr(cleanLine.find(":", split[0].size()) + 1) + "\n"; // get the message after the :
-									send(targetFD, msg.c_str(), msg.size(), 0);
-								}
+								partCmd(targetFD, split[0]);
+								std::string kicker_nick = _clients[client_fd].getNickname();
+								// :<kicker_nick> KICK <channel> <kicked_nick> :<reason>
+								std::string msg = ":" + kicker_nick + " KICK " + split[0] + " " + kicked_nick + " " + cleanLine.substr(cleanLine.find(":", split[0].size() + split[1].size())) + "\n";
+								MsgToChannel(split[0], msg, client_fd);
 							}
 						}
 					}
@@ -453,7 +442,7 @@ void Server::modeCmd(int client_fd, std::string cleanLine)
 // PING _________________________________________
 void Server::pingCmd(int client_fd, std::string cleanLine)
 {
-	std::string msg = ":PONG " + _hostName + " :" + cleanLine + "\r\n";
+	std::string msg = "PONG " + cleanLine + "\r\n";
 	send(client_fd, msg.c_str(), msg.size(), 0);
 }
 
@@ -590,7 +579,9 @@ void Server::quitCmd(int client_fd, std::string cleanLine)
 			}
 		}
 		close(client_fd);
-		_clients.erase(client_fd);
+		std::map<int, Client>::iterator it = _clients.find(client_fd);
+		if (it != _clients.end())
+			_clients.erase(it);
 	}
 }
 
