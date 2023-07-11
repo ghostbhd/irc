@@ -18,13 +18,13 @@ private:
     int _port;
     int _sock_fd;
     sockaddr_in _sockaddr;
-    std::vector<pollfd> _poll_vc;
+    std::vector<pollfd> _poll_vc; // fd, events, revents
 
-    std::map<int, Client> _clients;
+    std::map<int, Client> _clients; // fd, Client
 
-    std::map<std::string, Channel> _channels;
+    std::map<std::string, Channel> _channels; // channel_name, Channel
 
-    std::map<int, std::string> _errorMsg;
+    std::map<int, std::string> _errorMsg; // error_code, error_msg
 
     std::string _adminName;
     std::string _adminPass;
@@ -47,17 +47,17 @@ public:
     void newClient();
     void ClientRecv(int client_fd);
 
-    // Utils ---------------------------------------------------------------------
+    // Utils in utils.cpp --------------------------------------------------------
     std::string deleteNewLine(std::string str);
     std::vector<std::string> splitWithChar(std::string str, char c);
     bool isChannelExist(std::string name);
     void closeClient(int client_fd);
 
-    // Client ********************************
+    // Client  ________________________________
     int findClientFdByNick(std::string nick);
     int findClientFdByUser(std::string user);
 
-    // Channel *******************************
+    // Channel ________________________________
     std::string findChannelByFd(int fd);
     bool isChanNameValid(std::string name);
     void MsgToChannel(std::string chanName, std::string msg, int client_fd);
@@ -65,14 +65,15 @@ public:
     // RPLY ---------------------------------------------------------------------
     void sendWelcomeRpl(int client_fd, std::string nick);
 
-    // Errors -------------------------------------------------------------------
+    // Errors in errors.cpp ------------------------------------------------------
     void initErrorMsg();
     void sendError(int client_fd, int error_code, std::string command);
 
-    // Commands -----------------------------------------------------------------
+    // Commands in commands.cpp --------------------------------------------------
     void mainCommands(int client_fd, std::string cleanLine, std::string cmd);
     void operCmd(int client_fd, std::string cleanLine);
     void privmsg(int client_fd, std::string cleanLine);
+    // chanOps cmds _______
     void joinCmd(int client_fd, std::string cleanLine);
     void inviteCmd(int client_fd, std::string cleanLine);
     void KickCmd(int client_fd, std::string cleanLine);
