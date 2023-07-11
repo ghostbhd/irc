@@ -41,6 +41,17 @@ bool Server::isChannelExist(std::string name)
 	return false;
 }
 
+// Client ****************************************
+int Server::findClientFdByNick(std::string nick)
+{
+	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); it++)
+	{
+		if (it->second.getNickname() == nick)
+			return it->first;
+	}
+	return -1;
+}
+
 void Server::closeClient(int client_fd)
 {
 	// receive part for all the channels the client is in
@@ -59,17 +70,6 @@ void Server::closeClient(int client_fd)
 	if (it != _clients.end())
 		_clients.erase(it);
 	std::cout << "Client " << client_fd << " is now deleted\n";
-}
-
-// Client ****************************************
-int Server::findClientFdByNick(std::string nick)
-{
-	for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); it++)
-	{
-		if (it->second.getNickname() == nick)
-			return it->first;
-	}
-	return -1;
 }
 
 int Server::findClientFdByUser(std::string user)

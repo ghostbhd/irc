@@ -265,7 +265,7 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 							sendError(client_fd, ERR_NOTONCHANNEL, kicked_nick);
 						else
 						{
-							if (split[2][0] != ':')	// check if the message is valid
+							if (split[2][0] != ':') // check if the message is valid
 								sendError(client_fd, ERR_NEEDMOREPARAMS, cleanLine);
 							else
 							{
@@ -491,6 +491,7 @@ void Server::noticeCmd(int client_fd, std::string cleanLine)
 }
 
 // PART _________________________________________
+
 void Server::partCmd(int client_fd, std::string cleanLine)
 {
 	std::vector<std::string> split = splitWithChar(cleanLine, ' ');
@@ -505,7 +506,7 @@ void Server::partCmd(int client_fd, std::string cleanLine)
 	{
 		_channels[split[0]].removeMember(_clients[client_fd].getNickname());
 		std::string msg = ":" + _clients[client_fd].getNickname() + " PART " + split[0] + "\n";
-		// MsgToChannel(split[0], msg, client_fd);
+		// MsgToChannel(split[0], msg, client_fd);˚∆
 		send(client_fd, msg.c_str(), msg.size(), 0);
 	}
 }
