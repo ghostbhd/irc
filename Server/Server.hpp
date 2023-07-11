@@ -43,7 +43,7 @@ public:
     int getPort() const;
 
     // Main functions ------------------------------------------------------------
-    void start();
+    int start();
     void newClient();
     void ClientRecv(int client_fd);
 

@@ -21,8 +21,10 @@ int main(int ac, char **av)
 
 	signal(SIGINT, sighandler);
 	Server my_server(port, pass);
-	while(g_break)
-		my_server.start();
+
+	int serverStatus = 0;
+	while(g_break && !serverStatus)
+		serverStatus = my_server.start();
 	return (0);
 }
 
