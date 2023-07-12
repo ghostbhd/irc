@@ -27,7 +27,3 @@ int main(int ac, char **av)
 		serverStatus = my_server.start();
 	return (0);
 }
-
-// topic
-// kick
-// nick

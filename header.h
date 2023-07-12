@@ -1,20 +1,20 @@
 #ifndef HEADER_HPP
 #define HEADER_HPP
 
-#include <iostream> //for cout
-#include <sys/socket.h> // for socket functions
-#include <netinet/in.h> //for sockaddr_in
-#include <unistd.h> //for read
-#include <fcntl.h> //for non_blocking sockets
-#include <sys/poll.h> //for multiplexing
-#include <cstdlib> //for exit() and EXIT_FAILURE
-#include <string> //for string
-#include <csignal> //for Cntrl+c 
-#include <exception> //for exception
-#include <cstring> //for memset
-#include <vector> //for poll vector
-#include <map> //for map
-#include <sstream> // for stringstream
+#include <iostream>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/poll.h>
+#include <cstdlib>
+#include <string>
+#include <csignal>
+#include <exception>
+#include <cstring>
+#include <vector>
+#include <map>
+#include <sstream>
 
 
 enum ERROR_CODE

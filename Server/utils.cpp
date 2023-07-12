@@ -66,10 +66,10 @@ void Server::closeClient(int client_fd)
 		}
 	}
 	close(client_fd);
+	send(client_fd, "shutting down the server -----------\r\n", 6, 0);
 	std::map<int, Client>::iterator it = _clients.find(client_fd);
 	if (it != _clients.end())
 		_clients.erase(it);
-	std::cout << "Client " << client_fd << " is now deleted\n";
 }
 
 int Server::findClientFdByUser(std::string user)
@@ -105,7 +105,6 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 	std::string nick = _clients[client_fd].getNickname();
 	// [channel_name] <sender_nick> message_content
 	std::string message = ":" + _clients[client_fd].getNickname() + "!~h@" + _hostName + " PRIVMSG " + chanName + " :" + msg + "\n";
-	;
 	std::vector<std::string> clients = _channels[chanName].getMembers();
 	for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
 
@@ -113,5 +112,17 @@ void Server::MsgToChannel(std::string chanName, std::string msg, int client_fd)
 		int fd = findClientFdByNick(*it);
 		if (fd != client_fd)
 			send(fd, message.c_str(), message.size(), 0);
+	}
+}
+
+void Server::topicMessage(std::string chanName, std::string msg, int client_fd)
+{
+	std::string nick = _clients[client_fd].getNickname();
+	std::vector<std::string> clients = _channels[chanName].getMembers();
+	for (std::vector<std::string>::iterator it = clients.begin(); it != clients.end(); it++)
+	{
+		int fd = findClientFdByNick(*it);
+		if (fd != client_fd)
+			send(fd, msg.c_str(), msg.size(), 0);
 	}
 }

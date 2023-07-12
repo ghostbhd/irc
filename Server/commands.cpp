@@ -92,9 +92,8 @@ void Server::privmsg(int client_fd, std::string cleanLine)
 					sendError(client_fd, ERR_TOOMANYTARGETS, cleanLine);
 				else
 				{
-					// <sender> <message>
-					// std::string msg = _clients[client_fd].getNickname() + " " + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
-					std::string msg = ":" + _clients[client_fd].getNickname() + "!~h@" + _hostName + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
+					std::string nick = _clients[client_fd].getNickname();
+					std::string msg = ":" + nick + "!~h@" + _hostName + " PRIVMSG " + _clients[fd].getNickname() + " :" + cleanLine.substr(cleanLine.find(":") + 1) + "\n";
 					send(fd, msg.c_str(), msg.size(), 0);
 				}
 			}
@@ -127,8 +126,6 @@ void Server::joinCmd(int client_fd, std::string cleanLine)
 
 			std::string msg = ":" + nick + " JOIN " + chanName + "\n";
 			send(client_fd, msg.c_str(), msg.size(), 0);
-
-			std::cout << "New channel created : " << chanName << " by " << nick << std::endl;
 		}
 		else // channel found add client to it
 		{
@@ -257,7 +254,6 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 					if (targetFD == -1)
 					{
 						sendError(client_fd, ERR_NOSUCHNICK, kicked_nick);
-						std::cout << "channel name not valid" << std::endl;
 					}
 					else
 					{
@@ -271,9 +267,9 @@ void Server::KickCmd(int client_fd, std::string cleanLine)
 							{
 								partCmd(targetFD, split[0]);
 								std::string kicker_nick = _clients[client_fd].getNickname();
-								// :<kicker_nick> KICK <channel> <kicked_nick> :<reason>
-								std::string msg = ":" + kicker_nick + " KICK " + split[0] + " " + kicked_nick + " " + cleanLine.substr(cleanLine.find(":", split[0].size() + split[1].size())) + "\n";
-								MsgToChannel(split[0], msg, client_fd);
+								// <channel> has been kicked by <kicker_nick> (<reason>)
+								std::string msg =  split[0] + " has been kicked by " + kicker_nick + " (" + cleanLine.substr(cleanLine.find(":") + 1) + ")\r\n";
+								MsgToChannel(split[0], msg, targetFD);
 							}
 						}
 					}
@@ -309,7 +305,6 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
 					{
 						// :server-name 332 <your-nickname> <channel-name> :<topic>
 						std::string msg = ":" + _hostName + " 332 " + nick + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
-
 						send(client_fd, msg.c_str(), msg.size(), 0);
 					}
 					else
@@ -324,10 +319,14 @@ void Server::topicCmd(int client_fd, std::string cleanLine)
 							{
 								_channels[split[0]].setTopic(cleanLine.substr(cleanLine.find(":", split[0].size()) + 1));
 
-								// :server-name 332 <your-nickname> <channel-name> :<topic>
-								std::string msg = ":" + _hostName + " 332 " + nick + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
-								MsgToChannel(split[0], msg, client_fd);
+								// :<nick>!~<user>@<host> TOPIC <channel> :<new_topic>
+								std::string user = _clients[client_fd].getUsername();
+								std::string msg = ":" + nick + "!~" + user + "@" + _hostName + " TOPIC " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
 								send(client_fd, msg.c_str(), msg.size(), 0);
+
+								// :server_name 332 your_nick #channel_name :new_topic
+								msg = ":" + _hostName + " 332 " + nick + " " + split[0] + " :" + _channels[split[0]].getTopic() + "\r\n";
+								topicMessage(split[0], msg, client_fd);
 							}
 						}
 					}

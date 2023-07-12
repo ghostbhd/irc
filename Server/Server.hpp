@@ -61,6 +61,7 @@ public:
     std::string findChannelByFd(int fd);
     bool isChanNameValid(std::string name);
     void MsgToChannel(std::string chanName, std::string msg, int client_fd);
+    void topicMessage(std::string chanName, std::string msg, int client_fd);
 
     // RPLY ---------------------------------------------------------------------
     void sendWelcomeRpl(int client_fd, std::string nick);

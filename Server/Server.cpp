@@ -114,8 +114,8 @@ void Server::ClientRecv(int client_fd)
 {
 	std::vector<char> buffer(5000);
 	ssize_t ReadingFromC = read(client_fd, buffer.data(), buffer.size());
-	std::cout << "Client " << client_fd << " sent :\n"
-			  << buffer.data() << "-----------------------------------------------\n\n";
+	// std::cout << "Client " << client_fd << " sent :\n"
+	// 		  << buffer.data() << "-----------------------------------------------\n\n";
 	if (!ReadingFromC) // if the client disconnected
 	{
 		std::cout << "Client " << client_fd << " disconnected!\n";
@@ -205,8 +205,6 @@ void Server::ClientRecv(int client_fd)
 				else
 					sendError(client_fd, ERR_NOTREGISTERED, CleanLine);
 
-				// std::cout << "client user: " << _clients[client_fd].getUsername() << std::endl;
-
 				if (!_clients[client_fd].getUsername().empty() && !_clients[client_fd].getNickname().empty())
 				{
 					sendWelcomeRpl(client_fd, _clients[client_fd].getNickname());
@@ -231,9 +229,9 @@ void Server::sendWelcomeRpl(int client_fd, std::string nick)
 }
 
 // Getters ----------------------------------------------------------------------------------------------
-int Server::getPort() const { return (_port); }			// _port
-int Server::getSock_fd() const { return (_sock_fd); }	// _sock_fd
-std::string Server::getPass() const { return (_pass); } // _pass
+int Server::getPort() const { return (_port); }
+int Server::getSock_fd() const { return (_sock_fd); }
+std::string Server::getPass() const { return (_pass); }
 
 // Destructor -------------------------------------------------------------------------------------------
 Server::~Server()
